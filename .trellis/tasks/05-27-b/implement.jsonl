@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/05-27-b/prd.md", "reason": "Core requirements, architecture decisions, acceptance criteria"}
+{"file": ".trellis/tasks/05-27-b/research/bilibili-api.md", "reason": "B站API capabilities: login, following list, live room, danmaku collection"}
+{"file": ".trellis/tasks/05-27-b/research/push-channels.md", "reason": "PushPlus API integration details for notification delivery"}
+{"file": ".trellis/tasks/05-27-b/research/llm-summary.md", "reason": "LLM model selection, cost estimates, OpenAI SDK compatibility for AI summary"}

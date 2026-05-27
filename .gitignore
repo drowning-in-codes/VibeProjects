@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+data/*.db
+output/*.png
+.venv/
+*.egg-info/

@@ -1,0 +1,35 @@
+# B站直播日报自动推送系统 - 配置文件
+
+# B站登录
+bilibili:
+  # 手动填写cookie（可选，优先于扫码登录）
+  sessdata: ""
+  bili_jct: ""
+  dedeuserid: ""
+
+# 监控列表（UP主UID列表，为空则监控所有关注）
+watch_list:
+  - 0  # 示例UID，改为实际UID
+
+# 推送渠道
+push:
+  # PushPlus token (https://www.pushplus.plus/)
+  pushplus_token: ""
+
+# AI 总结（可选，不填则不启用）
+llm:
+  api_key: ""
+  api_base: "https://api.deepseek.com/v1"  # 兼容 OpenAI SDK 格式
+  model: "deepseek-chat"                    # 也可用 qwen-turbo, gpt-4o-mini 等
+
+# 定时任务
+schedule:
+  # 日报推送时间（cron表达式，默认每晚22:00）
+  daily_report_cron: "0 22 * * *"
+
+# 采集参数
+collector:
+  # 弹幕采样间隔（秒）
+  danmaku_interval: 300
+  # 每场直播最多采集弹幕条数
+  max_danmaku: 2000
