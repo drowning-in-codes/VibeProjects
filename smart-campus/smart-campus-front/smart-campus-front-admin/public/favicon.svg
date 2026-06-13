@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 背景圆形 -->
+  <circle cx="32" cy="32" r="32" fill="#409eff"/>
+
+  <!-- 书本/学习图标 -->
+  <g fill="#ffffff">
+    <!-- 左侧书页 -->
+    <path d="M20 18 L20 46 L28 42 L28 14 Z" opacity="0.9"/>
+
+    <!-- 右侧书页 -->
+    <path d="M36 14 L36 42 L44 46 L44 18 Z" opacity="0.9"/>
+
+    <!-- 中间书脊 -->
+    <rect x="28" y="14" width="8" height="28" opacity="0.95"/>
+
+    <!-- 底部阴影 -->
+    <ellipse cx="32" cy="46" rx="12" ry="2" opacity="0.3"/>
+
+    <!-- 装饰线条 -->
+    <line x1="22" y1="22" x2="26" y2="22" stroke="#409eff" stroke-width="1"/>
+    <line x1="22" y1="26" x2="26" y2="26" stroke="#409eff" stroke-width="1"/>
+    <line x1="38" y1="22" x2="42" y2="22" stroke="#409eff" stroke-width="1"/>
+    <line x1="38" y1="26" x2="42" y2="26" stroke="#409eff" stroke-width="1"/>
+  </g>
+</svg>
