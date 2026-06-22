@@ -1,0 +1,62 @@
+# XActions 配置
+xactions:
+  cli_path: "./XActions/cli.js"  # XActions CLI 工具路径
+
+# Anthropic API 配置
+anthropic:
+  model: "claude-opus-4-6"  # 或使用 claude-sonnet-4-6 降低成本
+  max_tokens: 2000
+
+# 定时任务配置
+scheduler:
+  # 爬取任务：每天凌晨 2 点执行
+  crawl_cron: "0 2 * * *"
+
+  # 发布任务：每 4 小时执行一次
+  post_interval_hours: 4
+
+# 目标用户配置
+targets:
+  users:
+    - username: "elonmusk"
+      enabled: false  # 示例，默认关闭
+    - username: "naval"
+      enabled: false
+    # 添加你想要学习的目标账号
+
+# 数据库配置
+database:
+  path: "./data/tweets.db"
+
+# 知乎配置
+zhihu:
+  enabled: false                         # 是否启用知乎人格蒸馏
+  chat_model: "fast"                     # 直答模型: fast / thinking / agent
+  search_queries:                        # 搜索关键词列表
+    - "人工智能"
+    - "创业"
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "./logs/autotwit.log"
+  rotation: "100 MB"
+  retention: "30 days"
+
+# 图片生成配置
+image:
+  enabled: true                       # 是否为推文生成配图
+  provider: "dalle"                   # dalle / unsplash / local
+  fallback_to_unsplash: true          # DALL-E 失败时降级到 Unsplash
+
+  dalle:
+    model: "dall-e-3"                 # dall-e-2 / dall-e-3
+    size: "1024x1024"                 # DALL-E 3: 1024x1024 / 1792x1024 / 1024x1792
+                                      # DALL-E 2: 256x256 / 512x512 / 1024x1024
+    quality: "standard"               # standard / hd (仅 DALL-E 3 支持)
+
+  unsplash:
+    enabled: true                     # 是否启用 Unsplash 备选
+
+  local:
+    image_dir: "./images"             # 本地图片库目录
