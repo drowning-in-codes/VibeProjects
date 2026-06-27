@@ -1,0 +1,500 @@
+#!/usr/bin/env python3
+"""
+EasyTwit — 基于 xdk 的 X/Twitter 自动发帖应用
+
+用法:
+    python -m src.main scrape              # 爬取目标用户的推文
+    python -m src.main distill             # 从推文蒸馏人格
+    python -m src.main persona-custom      # 从 config.yaml 创建自定义人格
+    python -m src.main generate            # 生成一条推文（预览，不发布）
+    python -m src.main post                # 生成并发布一条推文
+    python -m src.main post --topic "AI"   # 指定话题发布
+    python -m src.main run                 # 启动定时调度器
+    python -m src.main status              # 查看状态
+    python -m src.main setup               # 初始化数据库和目录
+"""
+import asyncio
+import sys
+import argparse
+from pathlib import Path
+
+from loguru import logger
+
+from .config import config
+from .storage.database import Database
+from .x.client import XClient
+from .x.scraper import TweetScraper
+from .x.auth import oauth_flow
+from .ai.persona import PersonaManager
+from .ai.generator import ContentGenerator
+from .poster import Poster
+from .scheduler import Scheduler
+
+
+# ── 日志配置 ──────────────────────────────────────────────
+
+def setup_logging():
+    """配置日志输出到文件和控制台"""
+    logger.remove()
+    log_format = (
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<level>{message}</level>"
+    )
+
+    # 控制台
+    logger.add(
+        sys.stderr,
+        format=log_format,
+        level=config.log_level,
+        colorize=True,
+    )
+
+    # 文件
+    log_dir = Path(config.log_file).parent
+    log_dir.mkdir(parents=True, exist_ok=True)
+    logger.add(
+        config.log_file,
+        format=log_format,
+        level="DEBUG",
+        rotation=config.log_rotation,
+        retention=config.log_retention,
+        encoding="utf-8",
+    )
+
+
+# ── 命令实现 ──────────────────────────────────────────────
+
+async def cmd_auth(port: int = 8000):
+    """OAuth 1.0a 认证：获取 access_token 并写入 .env"""
+    await oauth_flow(port=port)
+
+
+async def cmd_trends(woeid: str = "1", count: int = 20, personalized: bool = False):
+    """查看趋势"""
+    x = XClient()
+    if not x.ready:
+        logger.error("X 客户端未就绪")
+        return
+
+    if personalized:
+        trends = x.personalized_trends()
+        print(f"\n{'='*50}")
+        print("📈 个性化趋势")
+    else:
+        # 支持名称或数字
+        woeid_int = x.WOEID.get(woeid.lower(), None)
+        if woeid_int is None:
+            try:
+                woeid_int = int(woeid)
+            except ValueError:
+                logger.error(f"无效的 WOEID: {woeid}")
+                return
+        trends = x.trends(woeid=woeid_int, max_trends=count)
+        print(f"\n{'='*50}")
+        print(f"📈 趋势 (WOEID: {woeid})")
+
+    print(f"{'='*50}\n")
+    if not trends:
+        print("  无趋势数据")
+        return
+    for i, t in enumerate(trends, 1):
+        name = t.get('trend_name', t.get('name', '?'))
+        volume = t.get('tweet_volume', t.get('volume', '?'))
+        category = t.get('category', '')
+        print(f"  {i:2}. {name}")
+        if volume and volume != '?':
+            print(f"      推文量: {volume}")
+        if category:
+            print(f"      分类: {category}")
+    print()
+
+
+async def cmd_setup():
+    """初始化项目"""
+    logger.info("EasyTwit 初始化...")
+
+    # 创建必要目录
+    dirs = [
+        "./data",
+        "./data/images",
+        "./logs",
+    ]
+    for d in dirs:
+        Path(d).mkdir(parents=True, exist_ok=True)
+        logger.info(f"  目录: {d}")
+
+    # 初始化数据库
+    db = Database()
+    await db.initialize()
+
+    # X 客户端检查
+    x = XClient()
+    if x.ready:
+        logger.success("OAuth 1.0a 就绪 (发帖/搜索/用户操作)")
+        who = x.whoami()
+        if who:
+            logger.info(f"  用户: @{who.get('username', '?')}")
+    if x._bearer:
+        logger.success("Bearer Token 就绪 (趋势/公开接口)")
+    if x._oauth2:
+        logger.success("OAuth 2.0 就绪 (PKCE)")
+    if not x.ready and not x._bearer:
+        logger.warning("X 客户端未配置")
+
+    logger.success("初始化完成!")
+    logger.info("下一步:")
+    logger.info("  1. 编辑 config.yaml — 配置目标用户")
+    logger.info("  2. python -m src.main scrape  — 爬取推文")
+    logger.info("  3. python -m src.main distill — 蒸馏人格")
+    logger.info("  4. python -m src.main run     — 启动自动发帖")
+
+
+async def cmd_scrape(username: str = None, user_id: str = None, limit: int = 100):
+    """爬取目标用户的推文
+
+    优先级: --username / --id > config.yaml targets.users
+    """
+    db = Database()
+    await db.initialize()
+
+    scraper = TweetScraper(db)
+
+    # 确定爬取目标
+    if username:
+        users = [username.lstrip('@')]
+    elif user_id:
+        x = XClient()
+        if not x.ready:
+            logger.error("X 客户端未就绪")
+            return
+        # 通过 ID 查用户名
+        user = x.user_info(user_id)
+        if not user:
+            logger.error(f"未找到用户 ID: {user_id}")
+            return
+        users = [user.get('username', user_id)]
+        logger.info(f"ID → @{users[0]}")
+    else:
+        users = config.target_users
+        if not users:
+            logger.error("未指定用户。请使用 --username / --id 或在 config.yaml 中配置 targets.users")
+            return
+
+    logger.info(f"开始爬取 {len(users)} 个用户: {', '.join(users)}")
+    await scraper.scrape_users(users, limit_per_user=limit)
+
+    # 统计
+    for user in users:
+        count = await db.get_tweet_count(username=user)
+        logger.info(f"  @{user}: {count} 条推文")
+
+
+async def cmd_distill():
+    """从推文蒸馏人格"""
+    db = Database()
+    await db.initialize()
+
+    pm = PersonaManager(db)
+
+    # 先尝试从目标用户蒸馏
+    users = config.target_users
+    if users:
+        for username in users:
+            try:
+                persona = await pm.distill_from_tweets(username)
+                logger.success(
+                    f"人格蒸馏完成: @{username}\n"
+                    f"  语气: {persona.tone}\n"
+                    f"  话题: {', '.join(persona.topics)}\n"
+                    f"  高频词: {', '.join(persona.vocabulary[:10])}"
+                )
+            except ValueError as e:
+                logger.error(f"蒸馏失败 @{username}: {e}")
+
+    # 如果有自定义人格配置，也生成
+    custom = await pm.create_persona_from_config()
+    if custom:
+        logger.success(f"自定义人格已创建: {custom.tone}")
+
+
+async def cmd_persona_custom(use_config: bool = False):
+    """交互式创建自定义人格（或从 config.yaml 读取）"""
+    db = Database()
+    await db.initialize()
+
+    pm = PersonaManager(db)
+
+    if use_config:
+        # 从 config.yaml 读取
+        persona = await pm.create_persona_from_config()
+        if persona:
+            logger.success(f"自定义人格已创建: {persona.tone}")
+        else:
+            logger.error("请在 config.yaml 中启用 targets.custom_persona")
+        return
+
+    # 交互式输入
+    print(f"\n{'='*50}")
+    print("🧠 创建自定义 AI 人格")
+    print(f"{'='*50}\n")
+
+    name = input("人格名称 (如: 技术博主): ").strip()
+    if not name:
+        logger.error("名称不能为空")
+        return
+
+    description = input("具体描述 (如: 一个关注AI和技术前沿的理性思考者): ").strip()
+    if not description:
+        logger.error("描述不能为空")
+        return
+
+    keywords_str = input("关键词 (逗号分隔, 如: AI, 开源, 编程, 创业): ").strip()
+    keywords = [k.strip() for k in keywords_str.split(",") if k.strip()]
+
+    tone = input("语气风格 (如: 专业/幽默/理性/毒舌, 回车跳过): ").strip()
+
+    topics_str = input("关注话题 (逗号分隔, 如: 人工智能, 科技趋势, 产品思考, 回车跳过): ").strip()
+    topics = [t.strip() for t in topics_str.split(",") if t.strip()] if topics_str else None
+
+    print(f"\n{'='*50}")
+    print("正在使用 AI 生成人格...")
+    print(f"{'='*50}\n")
+
+    persona = await pm.create_custom_persona(
+        name=name,
+        description=description,
+        keywords=keywords if keywords else ["AI", "科技"],
+        tone=tone,
+        topics=topics,
+    )
+
+    logger.success(
+        f"人格已创建:\n"
+        f"  名称: {name}\n"
+        f"  语气: {persona.tone}\n"
+        f"  话题: {', '.join(persona.topics)}\n"
+        f"  高频词: {', '.join(persona.vocabulary[:10])}"
+    )
+
+
+async def cmd_generate(topic: str = None):
+    """生成推文预览（不发布）"""
+    db = Database()
+    await db.initialize()
+
+    poster = Poster(db)
+
+    result = await poster.post_now(topic=topic, dry_run=True)
+    if result:
+        print(f"\n{'='*50}")
+        print(f"预览推文 ({len(result.content)} 字符):")
+        print(f"{'='*50}")
+        print(result.content)
+        if result.image_path:
+            print(f"\n配图: {result.image_path}")
+        print(f"{'='*50}")
+    else:
+        logger.error("生成失败（可能已达每日限额或无可用人格）")
+
+
+async def cmd_post(topic: str = None, with_image: bool = None):
+    """生成并发布推文"""
+    db = Database()
+    await db.initialize()
+
+    poster = Poster(db)
+
+    print(f"\n{'='*50}")
+    print("准备发布推文到 X...")
+    print(f"{'='*50}")
+
+    result = await poster.post_now(topic=topic, with_image=with_image)
+    if result and result.status == "success":
+        print(f"\n✓ 发布成功!")
+        print(f"  推文 ID: {result.tweet_id}")
+        print(f"  内容: {result.content}")
+        if result.image_path:
+            print(f"  配图: {result.image_path}")
+    elif result and result.status == "failed":
+        print(f"\n✗ 发布失败: {result.error_message}")
+    else:
+        print("\n✗ 发布失败")
+
+
+async def cmd_run():
+    """启动定时调度"""
+    db = Database()
+    await db.initialize()
+
+    poster = Poster(db)
+
+    scheduler = Scheduler()
+
+    # 注册发帖任务
+    async def post_task():
+        await poster.post_now()
+
+    scheduler.add_task(
+        name="auto-post",
+        cron_expr=config.post_cron,
+        callback=post_task,
+    )
+
+    logger.info("=" * 50)
+    logger.info("EasyTwit 定时发帖已启动")
+    logger.info(f"Cron: {config.post_cron}")
+    logger.info(f"每日上限: {config.max_posts_per_day} 条")
+    logger.info("按 Ctrl+C 停止")
+    logger.info("=" * 50)
+
+    try:
+        await scheduler.start()
+    except KeyboardInterrupt:
+        scheduler.stop()
+        logger.info("已停止")
+
+
+async def cmd_status():
+    """显示应用状态"""
+    db = Database()
+    await db.initialize()
+
+    print(f"\n{'='*50}")
+    print("EasyTwit 状态")
+    print(f"{'='*50}")
+
+    # 推文数量
+    total_tweets = await db.get_tweet_count()
+    print(f"\n[DB] 已爬取推文: {total_tweets} 条")
+
+    # 人格
+    personas = await db.get_all_personas()
+    print(f"\n[AI] 人格数据: {len(personas)} 个")
+    for p in personas:
+        print(f"  @{p.username}: {p.tone} (来源: {p.source})")
+
+    # 今日发布
+    posts_today = await db.get_posts_today()
+    print(f"\n[POST] 今日发布: {posts_today}/{config.max_posts_per_day} 条")
+
+    # 最近发布
+    recent = await db.get_recent_posts(limit=5)
+    if recent:
+        print(f"\n[HISTORY] 最近发布:")
+        for r in recent:
+            if r.status == "success":
+                status_icon = "OK"
+            elif r.status == "dry_run":
+                status_icon = "PREVIEW"
+            else:
+                status_icon = "FAIL"
+            print(f"  [{status_icon}] {r.content[:60]}...")
+
+    # 目标用户
+    users = config.target_users
+    if users:
+        print(f"\n[TARGET] 目标用户: {', '.join(users)}")
+    else:
+        print(f"\n[TARGET] 目标用户: (无，使用自定义人格)")
+
+    print(f"\n[CRON] 调度: {config.post_cron}")
+    print()
+
+
+# ── CLI ───────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="EasyTwit — xdk-based auto-tweet application",
+    )
+    subparsers = parser.add_subparsers(dest="command", help="可用命令")
+
+    # auth
+    auth_parser = subparsers.add_parser("auth", help="OAuth 1.0a 认证流程")
+    auth_parser.add_argument("--port", "-p", type=int, default=8000, help="回调端口 (默认8000)")
+
+    # setup
+    subparsers.add_parser("setup", help="初始化数据库和目录")
+
+    # scrape
+    sc_parser = subparsers.add_parser("scrape", help="爬取目标用户的推文")
+    sc_parser.add_argument("--username", "-u", type=str, help="X 用户名")
+    sc_parser.add_argument("--id", "-i", type=str, help="X 用户 ID")
+    sc_parser.add_argument("--limit", "-n", type=int, default=100, help="最大爬取数")
+
+    # distill
+    subparsers.add_parser("distill", help="从推文蒸馏人格")
+
+    # persona-custom
+    pc_parser = subparsers.add_parser("persona-custom", help="创建自定义人格")
+    pc_parser.add_argument("--config", action="store_true",
+                           help="从 config.yaml 读取（默认交互式输入）")
+
+    # generate
+    gen_parser = subparsers.add_parser("generate", help="生成推文预览")
+    gen_parser.add_argument("--topic", "-t", type=str, help="话题关键词")
+
+    # post
+    post_parser = subparsers.add_parser("post", help="生成并发布推文")
+    post_parser.add_argument("--topic", "-t", type=str, help="话题关键词")
+    post_parser.add_argument("--with-image", action="store_true", default=None,
+                            help="强制配图")
+    post_parser.add_argument("--no-image", action="store_false", dest="with_image",
+                            help="强制无图")
+
+    # run
+    subparsers.add_parser("run", help="启动定时调度器")
+
+    # trends
+    tr_parser = subparsers.add_parser("trends", help="查看趋势")
+    tr_parser.add_argument("--woeid", "-w", type=str, default="1",
+                           help="WOEID 或地区名 (worldwide/us/uk/japan/korea/canada)")
+    tr_parser.add_argument("--count", "-n", type=int, default=20, help="返回数量")
+    tr_parser.add_argument("--personalized", "-p", action="store_true",
+                           help="个性趋势（基于认证用户）")
+
+    # status
+    subparsers.add_parser("status", help="查看应用状态")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        return
+
+    setup_logging()
+
+    # 路由到对应命令
+    commands = {
+        "auth": lambda: cmd_auth(port=getattr(args, 'port', 8000)),
+        "setup": cmd_setup,
+        "scrape": lambda: cmd_scrape(
+            username=getattr(args, 'username', None),
+            user_id=getattr(args, 'id', None),
+            limit=getattr(args, 'limit', 100)),
+        "distill": cmd_distill,
+        "persona-custom": lambda: cmd_persona_custom(
+            use_config=getattr(args, 'config', False)),
+        "generate": lambda: cmd_generate(topic=getattr(args, 'topic', None)),
+        "post": lambda: cmd_post(
+            topic=getattr(args, 'topic', None),
+            with_image=getattr(args, 'with_image', None),
+        ),
+        "trends": lambda: cmd_trends(
+            woeid=getattr(args, 'woeid', '1'),
+            count=getattr(args, 'count', 20),
+            personalized=getattr(args, 'personalized', False)),
+        "run": cmd_run,
+        "status": cmd_status,
+    }
+
+    func = commands.get(args.command)
+    if func:
+        asyncio.run(func())
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

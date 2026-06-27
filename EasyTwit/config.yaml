@@ -1,0 +1,72 @@
+# ═══════════════════════════════════════════════════════════════
+# EasyTwit — xcurl-based auto-tweet configuration
+# ═══════════════════════════════════════════════════════════════
+
+# ── X/Twitter API (XDK) ───────────────────────────────────
+# OAuth 1.0a 凭证在 .env 中配置
+x:
+  timeout: 30
+
+# ── Anthropic (Claude) ────────────────────────────────────
+# Base URL & API key from .env. Backup is used if primary fails.
+anthropic:
+  model: deepseek-v4-pro
+  max_tokens: 2000
+
+# ── Image Generation ─────────────────────────────────────
+# Primary: nanobanana (Gemini API)
+# Backup:  GPT-Image-2 (Chat Completions)
+nanobanana:
+  model: nano-banana
+  size: 1024x1024
+
+openai:
+  model: gpt-image-2
+  size: 1024x1024
+  quality: standard
+
+# ── Targets: users to crawl & mimic ───────────────────────
+targets:
+  users:
+    - username: elonmusk
+      enabled: false
+    - username: sama
+      enabled: false
+    - username: karpathy
+      enabled: false
+  custom_persona:
+    enabled: true
+    description: "一个关注AI和科技前沿的理性思考者"
+    keywords:
+      - AI
+      - 科技
+      - 编程
+      - 创业
+      - 未来
+    tone: "专业、理性、偶尔幽默"
+    topics:
+      - 人工智能
+      - 开源技术
+      - 科技趋势
+      - 产品思考
+
+# ── Scheduler ────────────────────────────────────────────
+scheduler:
+  post_cron: "0 */4 * * *"
+  max_posts_per_day: 6
+
+# ── Database ──────────────────────────────────────────────
+database:
+  path: ./data/easytwit.db
+
+# ── Image Output ─────────────────────────────────────────
+image:
+  enabled: true
+  output_dir: ./data/images
+
+# ── Logging ──────────────────────────────────────────────
+logging:
+  level: INFO
+  file: ./logs/easytwit.log
+  rotation: 100 MB
+  retention: 30 days
