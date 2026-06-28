@@ -12,6 +12,8 @@ x:
 anthropic:
   model: deepseek-v4-pro
   max_tokens: 2000
+  # 预备 prompt 模板 (prompts/*.md 或留空跳过)
+  prompt_template: prompts/viral.md
 
 # ── Image Generation ─────────────────────────────────────
 # Primary: nanobanana (Gemini API)
@@ -26,7 +28,9 @@ openai:
   quality: standard
 
 # ── Targets: users to crawl & mimic ───────────────────────
+# scrape_source: "users" | "following" | "timeline" (默认 users)
 targets:
+  scrape_source: users
   users:
     - username: elonmusk
       enabled: false
@@ -52,8 +56,12 @@ targets:
 
 # ── Scheduler ────────────────────────────────────────────
 scheduler:
+  run_immediately: true
   post_cron: "0 */4 * * *"
   max_posts_per_day: 6
+  # 爬取配置
+  scrape_limit: 20    # 每次爬取每个用户最大推文数
+  following_limit: 20 # 关注列表爬取最大用户数
 
 # ── Database ──────────────────────────────────────────────
 database:

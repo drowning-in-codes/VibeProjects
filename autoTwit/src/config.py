@@ -3,14 +3,14 @@
 从 config.yaml 和 .env 文件加载配置
 """
 import os
+import httpx
 import yaml
 from pathlib import Path
-from typing import Any, Dict
 from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 
-# 加载环境变量
-load_dotenv()
+# 加载环境变量（override=True 确保 .env 覆盖系统变量，包括代理设置）
+load_dotenv(override=True)
 
 
 class Config:
@@ -136,6 +136,31 @@ class Config:
     def zhihu_chat_model(self) -> str:
         """知乎直答模型: fast / thinking / agent"""
         return self.get('zhihu.chat_model', 'fast')
+
+    # ── 代理 ──────────────────────────────────────────────
+
+    @property
+    def http_proxy(self) -> Optional[str]:
+        """HTTP/HTTPS 代理地址"""
+        return (
+            os.getenv('HTTPS_PROXY', None)
+            or os.getenv('HTTP_PROXY', None)
+            or self.get('proxy.url', None)
+        )
+
+    def get_proxies_dict(self) -> Optional[Dict[str, str]]:
+        """返回 requests 库兼容的代理字典"""
+        url = self.http_proxy
+        if url:
+            return {"http": url, "https": url}
+        return None
+
+    def get_httpx_client(self) -> Optional[httpx.Client]:
+        """返回配置了代理的 httpx 同步客户端"""
+        url = self.http_proxy
+        if url:
+            return httpx.Client(proxy=url, trust_env=False)
+        return None
 
     @property
     def log_retention(self) -> str:

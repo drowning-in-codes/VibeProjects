@@ -7,6 +7,12 @@ from pathlib import Path
 from loguru import logger
 from xdk import Client as XdkClient
 from xdk.oauth1_auth import OAuth1
+from xdk.posts.models import (
+    CreateRequest, CreateRequestMedia, CreateRequestReply,
+)
+from xdk.media.models import (
+    InitializeUploadRequest, AppendUploadRequest,
+)
 
 from ..config import config
 
@@ -16,7 +22,16 @@ def _unwrap(response) -> Optional[Dict[str, Any]]:
     if response is None:
         return None
     if hasattr(response, 'data'):
-        return response.data
+        data = response.data
+        # Pydantic 对象 → dict
+        if hasattr(data, 'dict'):
+            return data.dict()
+        if hasattr(data, 'model_dump'):
+            return data.model_dump()
+        if isinstance(data, dict):
+            return data
+        # 普通对象 → vars
+        return vars(data) if hasattr(data, '__dict__') else data
     if isinstance(response, dict):
         return response
     return None
@@ -81,12 +96,11 @@ class XClient:
         if len(text) > 280:
             text = text[:277] + "..."
 
-        post_data: Dict[str, Any] = {"text": text}
-        if media_ids:
-            post_data["media"] = {"media_ids": media_ids}
+        media = CreateRequestMedia(media_ids=media_ids) if media_ids else None
+        body = CreateRequest(text=text, media=media)
 
         logger.info(f"发布推文: {text[:60]}...")
-        result = self._client.posts.create(post_data=post_data)
+        result = self._client.posts.create(body=body)
         data = _unwrap(result) or {}
         tweet_id = data.get('id', '')
         logger.success(f"推文发布成功! ID: {tweet_id}")
@@ -94,16 +108,17 @@ class XClient:
 
     def reply(self, tweet_id: str, text: str) -> Dict[str, Any]:
         self._require()
-        result = self._client.posts.create(post_data={
-            "text": text, "reply": {"in_reply_to_tweet_id": tweet_id},
-        })
+        body = CreateRequest(
+            text=text,
+            reply=CreateRequestReply(in_reply_to_tweet_id=tweet_id),
+        )
+        result = self._client.posts.create(body=body)
         return {"tweet_id": (_unwrap(result) or {}).get('id', '')}
 
     def quote(self, tweet_id: str, text: str) -> Dict[str, Any]:
         self._require()
-        result = self._client.posts.create(post_data={
-            "text": text, "quote_tweet_id": tweet_id,
-        })
+        body = CreateRequest(text=text, quote_tweet_id=tweet_id)
+        result = self._client.posts.create(body=body)
         return {"tweet_id": (_unwrap(result) or {}).get('id', '')}
 
     def delete(self, tweet_id: str) -> bool:
@@ -148,20 +163,28 @@ class XClient:
         try:
             file_size = path.stat().st_size
             media_type = _guess_media_type(path.suffix)
-            logger.info(f"上传媒体: {path.name} ({file_size} bytes)")
+            logger.info(f"上传媒体: {path.name} ({file_size} bytes, {media_type})")
 
-            init = self._client.media.initialize_upload(
-                file_name=path.name, file_size=file_size, media_type=media_type)
-            media_id = (_unwrap(init) or {}).get('id', '')
+            init = self._client.media.initialize_upload(body=InitializeUploadRequest(
+                media_type=media_type,
+                total_bytes=file_size,
+            ))
+            # XDK 返回 InitializeUploadResponse, .data.id 即 media_id
+            media_id = getattr(getattr(init, 'data', None), 'id', None)
             if not media_id:
+                logger.error("INIT 失败：未获取 media_id")
                 return None
 
+            import base64
             with open(path, 'rb') as f:
                 self._client.media.append_upload(
-                    media_id=media_id, file_data=f.read(), segment_index=0)
+                    media_id, body=AppendUploadRequest(
+                        media=base64.b64encode(f.read()).decode(),
+                        segment_index=0,
+                    ))
 
-            self._client.media.finalize_upload(media_id=media_id)
-            logger.success(f"媒体上传成功: {media_id}")
+            self._client.media.finalize_upload(media_id)
+            logger.success(f"媒体上传成功: media_id={media_id}")
             return media_id
         except Exception as e:
             logger.error(f"媒体上传失败: {e}")
@@ -189,16 +212,62 @@ class XClient:
         return self.search(f"from:{username}", count=count)
 
     # ═══════════════════════════════════════════════════════════════
+    # 社交图谱
+    # ═══════════════════════════════════════════════════════════════
+
+    def following(self, count: int = 50) -> List[Dict[str, Any]]:
+        """获取关注列表 (需要用户 ID, 不是 'me')"""
+        self._require()
+        try:
+            # 先获取自己的用户 ID
+            me = self.whoami()
+            user_id = me.get('id', '') if me else None
+            if not user_id:
+                logger.error("无法获取自己的用户 ID")
+                return []
+
+            results = []
+            for page in self._client.users.get_following(
+                    user_id, max_results=min(count, 100)):
+                data = _unwrap(page)
+                users = data.get('data', data) if isinstance(data, dict) else data
+                if isinstance(users, list):
+                    results.extend(users)
+                    if len(results) >= count:
+                        break
+            logger.info(f"关注列表: {len(results)} 个用户")
+            return results[:count]
+        except Exception as e:
+            logger.error(f"获取关注列表失败: {e}")
+            return []
+
+    def timeline_users(self, count: int = 50) -> List[str]:
+        """从时间线推文中提取活跃用户"""
+        tweets = self.timeline(count=count)
+        users = set()
+        for t in tweets:
+            author = t.get('author_id') or t.get('author', {}).get('username', '')
+            if author:
+                users.add(author)
+        return list(users)
+
+    # ═══════════════════════════════════════════════════════════════
     # 用户
     # ═══════════════════════════════════════════════════════════════
 
     def timeline(self, count: int = 20) -> List[Dict[str, Any]]:
         self._require()
         try:
-            result = self._client.users.get_timeline(max_results=count)
-            data = _unwrap(result)
-            posts = data.get('data', data) if isinstance(data, dict) else data
-            return posts if isinstance(posts, list) else []
+            results = []
+            for page in self._client.users.get_timeline(
+                    "me", max_results=min(count, 100)):
+                data = _unwrap(page)
+                posts = data.get('data', data) if isinstance(data, dict) else data
+                if isinstance(posts, list):
+                    results.extend(posts)
+                    if len(results) >= count:
+                        break
+            return results[:count]
         except Exception as e:
             logger.error(f"获取时间线失败: {e}")
             return []

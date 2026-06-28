@@ -1,0 +1,17 @@
+services:
+  easytwit:
+    build: .
+    container_name: easytwit
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
+    # 自定义命令: 覆盖 CMD，如 python -m src setup
+    # command: python -m src setup
+
+  # 仅调度（不发帖时关闭）
+  # profiles:
+  #   - scheduler

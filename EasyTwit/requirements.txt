@@ -1,16 +1,21 @@
-# EasyTwit — xcurl-based auto-tweet application
+# EasyTwit — XDK-based auto-tweet application
 
-# Core
-pyyaml>=6.0
-python-dotenv>=1.0.0
-httpx>=0.27.0
+# X/Twitter
+xdk>=0.1.0
 
 # AI
 anthropic>=0.39.0
 openai>=1.0.0
 
-# X/Twitter
-xdk>=0.2.0b0
+# Storage
+aiosqlite>=0.20.0
+
+# Config & Env
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# HTTP
+httpx>=0.27.0
 
 # Scheduling
 croniter>=2.0.0
@@ -18,5 +23,5 @@ croniter>=2.0.0
 # Logging
 loguru>=0.7.0
 
-# Image (optional, for DALL-E)
+# Image
 Pillow>=10.0.0

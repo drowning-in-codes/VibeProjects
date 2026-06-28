@@ -126,6 +126,11 @@ class Config:
         """Anthropic 最大 tokens"""
         return self.get('anthropic.max_tokens', 2000)
 
+    @property
+    def prompt_template(self) -> str:
+        """预备 prompt 模板路径 (prompts/*.md 或空)"""
+        return self.get('anthropic.prompt_template', '')
+
     # ── nanobanana (Gemini 2.5 Flash Image) ───────────────
 
     @property
@@ -174,6 +179,11 @@ class Config:
         return [u['username'] for u in users if u.get('enabled', False)]
 
     @property
+    def scrape_source(self) -> str:
+        """爬取来源: users | following | timeline"""
+        return self.get('targets.scrape_source', 'users')
+
+    @property
     def custom_persona_enabled(self) -> bool:
         """是否启用自定义人格"""
         return self.get('targets.custom_persona.enabled', False)
@@ -194,6 +204,11 @@ class Config:
     def max_posts_per_day(self) -> int:
         """每日最大发帖数"""
         return self.get('scheduler.max_posts_per_day', 6)
+
+    @property
+    def run_immediately(self) -> bool:
+        """启动后立即执行一次"""
+        return self.get('scheduler.run_immediately', True)
 
     # ── Database ──────────────────────────────────────────
 

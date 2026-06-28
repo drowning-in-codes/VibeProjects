@@ -1,0 +1,52 @@
+# B站直播日报系统配置
+
+bilibili:
+  session_file: ./data/session.json
+  following_file: ./data/following.yaml
+  history_file: ./data/history.json
+
+monitor:
+  # UID whitelist — only monitor these UP主
+  # Manage via CLI: python -m src follow add <uid>
+  whitelist: []
+  # Danmaku sample count per live room
+  danmaku_sample_count: 500
+  # Delay between B站 API calls (seconds)
+  api_delay: 1.5
+
+ai:
+  # Model name (OpenAI SDK compatible)
+  #   deepseek-chat      → DeepSeek-V3 (recommended)
+  #   qwen-turbo         → Qwen-Turbo (cheapest)
+  #   qwen-plus          → Qwen-Plus
+  #   gpt-4o-mini        → GPT-4o-mini
+  model: deepseek-chat
+  # Max tokens for summary output
+  max_tokens: 400
+  # Temperature
+  temperature: 0.7
+  # System prompt for AI summary
+  system_prompt: "你是B站直播内容分析师，擅长从弹幕中提取关键信息。请根据提供的直播标题、弹幕样本和分区信息，生成简洁的直播内容总结。"
+
+scheduler:
+  # Daily report time (cron expression)
+  # Default: 22:00 every day — generates report for today's live streams
+  report_cron: "0 22 * * *"
+
+pushplus:
+  # Push channel: wechat / topic / webhook / mail / sms
+  channel: wechat
+
+logging:
+  level: INFO
+  file: ./logs/blive.log
+  rotation: 10 MB
+  retention: 30 days
+
+wordcloud:
+  output_dir: ./output/wordcloud
+  width: 800
+  height: 600
+  font_path: ""  # Empty = auto-detect; set to a .ttf path for custom Chinese font
+  background_color: white
+  max_words: 200

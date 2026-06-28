@@ -18,11 +18,15 @@ class ContentGenerator:
     def __init__(self, db: Database):
         self.db = db
 
-        # 初始化 Anthropic 客户端，支持自定义 base_url
-        client_kwargs = {"api_key": config.anthropic_api_key}
+        # 初始化 Anthropic 客户端，支持代理和自定义 base_url
+        client_kwargs: dict = {"api_key": config.anthropic_api_key}
         if config.anthropic_base_url:
             client_kwargs["base_url"] = config.anthropic_base_url
             logger.info(f"使用自定义 Anthropic API: {config.anthropic_base_url}")
+        http_client = config.get_httpx_client()
+        if http_client:
+            client_kwargs["http_client"] = http_client
+            logger.info(f"Anthropic 通过代理连接: {config.http_proxy}")
 
         self.client = Anthropic(**client_kwargs)
         dalle_model = config.get('image.dalle.model', 'dall-e-3')
@@ -95,7 +99,7 @@ class ContentGenerator:
         logger.info(f"开始生成推文，基于用户 @{persona.username} 的人格特征")
 
         prompt = self._build_generation_prompt(persona, topic)
-
+        print(prompt)
         try:
             message = self.client.messages.create(
                 model=config.anthropic_model,

@@ -10,6 +10,7 @@ import json
 import requests
 from typing import Optional, Dict, Any, List, Iterator
 from loguru import logger
+from ..config import config
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -34,6 +35,7 @@ class ZhihuAPIClient:
             access_secret: 知乎开放平台 Access Secret (Bearer Token)
         """
         self.access_secret = access_secret
+        self._proxies = config.get_proxies_dict()
 
     def _build_headers(self) -> Dict[str, str]:
         """构建请求头"""
@@ -49,6 +51,7 @@ class ZhihuAPIClient:
         endpoint: str,
         params: Optional[Dict] = None,
         timeout: int = 15,
+        json_body: Optional[Dict] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         发起 API 请求
@@ -56,8 +59,9 @@ class ZhihuAPIClient:
         Args:
             method: HTTP 方法 (GET/POST)
             endpoint: API 端点路径 (不含 BASE_URL)
-            params: 查询参数
+            params: 查询参数 (GET)
             timeout: 超时秒数
+            json_body: JSON 请求体 (POST)
 
         Returns:
             响应 JSON 数据，失败返回 None
@@ -67,7 +71,8 @@ class ZhihuAPIClient:
 
         try:
             response = requests.request(
-                method, url, headers=headers, params=params, timeout=timeout
+                method, url, headers=headers, params=params,
+                json=json_body, timeout=timeout, proxies=self._proxies,
             )
             response.raise_for_status()
             return response.json()
@@ -277,6 +282,7 @@ class ZhihuChatClient:
         """
         self.access_secret = access_secret
         self.model = self.MODELS.get(model, model)
+        self._proxies = config.get_proxies_dict()
 
     def _build_headers(self) -> Dict[str, str]:
         """构建请求头"""
@@ -319,7 +325,9 @@ class ZhihuChatClient:
         }
 
         try:
-            response = requests.post(url, headers=headers, json=body, timeout=timeout)
+            response = requests.post(
+                url, headers=headers, json=body, timeout=timeout, proxies=self._proxies
+            )
             response.raise_for_status()
             return response.json()
 
@@ -366,7 +374,8 @@ class ZhihuChatClient:
 
         try:
             response = requests.post(
-                url, headers=headers, json=body, timeout=timeout, stream=True
+                url, headers=headers, json=body, timeout=timeout, stream=True,
+                proxies=self._proxies,
             )
             response.raise_for_status()
 

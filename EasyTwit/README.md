@@ -58,6 +58,43 @@ python -m src auth          # 浏览器授权 → 自动写入 .env
 pip install -r requirements.txt
 ```
 
+### 4. Docker 部署 (可选)
+
+```bash
+# 构建镜像
+docker build -t easytwit .
+
+# 初始化数据库
+docker run --rm \
+  -v ./data:/app/data \
+  -v ./.env:/app/.env \
+  easytwit python -m src setup
+
+# 交互式创建人格
+docker run -it --rm \
+  -v ./.env:/app/.env \
+  -v ./data:/app/data \
+  easytwit python -m src persona-custom
+
+# 手动发帖
+docker run --rm \
+  -v ./.env:/app/.env \
+  -v ./data:/app/data \
+  easytwit python -m src post -t "AI"
+
+# 后台运行定时调度
+docker compose up -d
+
+# 查看状态
+docker compose run --rm easytwit python -m src status
+
+# 查看日志
+docker compose logs -f
+
+# 停止
+docker compose down
+```
+
 ## CLI 命令
 
 | 命令 | 说明 |
@@ -102,6 +139,7 @@ EasyTwit/
 ├── tests/
 │   ├── test_image_api.py     # 图片 API 测试
 │   └── test_users.py         # 用户查询 API 测试
+├── Dockerfile / docker-compose.yml / .dockerignore
 ├── config.yaml / .env.example / requirements.txt
 └── README.md
 ```

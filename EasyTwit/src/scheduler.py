@@ -50,15 +50,18 @@ class Scheduler:
 
                 if delay <= 1:
                     # 应该触发了
-                    logger.info(f"触发任务: '{task['name']}' at {now.strftime('%H:%M:%S')}")
+                    logger.info("=" * 50)
+                    logger.info(f"⏰ 触发定时任务: '{task['name']}' @ {now.strftime('%Y-%m-%d %H:%M:%S')}")
                     try:
                         await task['callback']()
+                        logger.info(f"✅ 任务 '{task['name']}' 执行完成")
                     except Exception as e:
-                        logger.error(f"任务 '{task['name']}' 执行失败: {e}")
+                        logger.error(f"❌ 任务 '{task['name']}' 执行失败: {e}")
 
                     # 获取下次时间
                     next_next = cron.get_next(datetime)
                     delay = (next_next - datetime.now()).total_seconds()
+                    logger.info(f"⏱  下次执行: {next_next.strftime('%Y-%m-%d %H:%M:%S')} (距今 {delay/60:.0f} 分钟)")
 
                 # 等待下次检查
                 sleep_time = min(delay, 30)  # 最多等 30s，提高精度

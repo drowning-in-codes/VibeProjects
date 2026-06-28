@@ -182,7 +182,13 @@ class ContentGenerator:
         formality = style_metrics.get('formality', 5)
         humor = style_metrics.get('humor_level', 5)
 
-        parts = [f"""
+        # 加载外部 prompt 模板
+        template = self._load_prompt_template()
+        parts = []
+        if template:
+            parts.append(template + "\n")
+
+        parts.append(f"""
 你需要完全模仿 @{persona.username} 的推文风格来创作一条新推文。
 
 人格特征：
@@ -193,7 +199,7 @@ class ContentGenerator:
 - 幽默感: {humor}/10
 - Emoji 使用: {style_metrics.get('emoji_usage', '中')}
 - 平均长度: {style_metrics.get('avg_length', 100)} 字符
-"""]
+""")
 
         # 添加参考推文
         if reference_tweets:
@@ -216,7 +222,7 @@ class ContentGenerator:
 1. 严格遵循上述人格特征和风格
 2. 使用该用户的常用词汇和表达方式
 3. 保持语气、幽默感和正式度一致
-4. 长度控制在 50-280 字符之间
+4. 长度控制在 260-500 字符之间 (内容要有深度, 超出 280 会自动拆成推文串)
 5. 如果该用户常用 emoji，请自然地使用
 6. 内容要有价值，不要空洞无物
 7. 推文要像真人发的，不要像广告或机器人
@@ -226,6 +232,19 @@ class ContentGenerator:
 """)
 
         return "".join(parts)
+
+    @staticmethod
+    def _load_prompt_template() -> str:
+        """从外部 .md 文件加载 prompt 模板"""
+        from pathlib import Path
+        template_path = config.prompt_template
+        if not template_path:
+            return ""
+        path = Path(template_path)
+        if path.exists():
+            return path.read_text(encoding='utf-8')
+        logger.warning(f"模板文件不存在: {template_path}")
+        return ""
 
     @staticmethod
     def _extract_text(message) -> str:

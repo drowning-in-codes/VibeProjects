@@ -9,6 +9,7 @@ from typing import Optional
 from loguru import logger
 from openai import OpenAI
 
+from ..config import config
 from .image_prompt_optimizer import ImagePromptOptimizer
 
 
@@ -48,6 +49,7 @@ class UnsplashProvider(ImageProvider):
     def __init__(self, access_key: Optional[str] = None):
         self.access_key = access_key or os.getenv("UNSPLASH_ACCESS_KEY")
         self.base_url = "https://api.unsplash.com"
+        self._proxy_url = config.http_proxy
 
     async def get_image(self, prompt: str, topic: str) -> Optional[str]:
         """从 Unsplash 搜索并下载图片"""
@@ -58,7 +60,7 @@ class UnsplashProvider(ImageProvider):
         try:
             query = topic or prompt[:50]
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(proxy=self._proxy_url) as client:
                 # 搜索图片
                 response = await client.get(
                     f"{self.base_url}/search/photos",
@@ -101,18 +103,23 @@ class DALLEProvider(ImageProvider):
     def __init__(self, api_key: Optional[str] = None, model: str = "dall-e-3"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if self.api_key:
-            # 初始化 OpenAI 客户端，支持自定义 base_url
-            client_kwargs = {"api_key": self.api_key}
+            # 初始化 OpenAI 客户端，支持代理和自定义 base_url
+            client_kwargs: dict = {"api_key": self.api_key}
             base_url = os.getenv("OPENAI_BASE_URL")
             if base_url:
                 client_kwargs["base_url"] = base_url
                 logger.info(f"使用自定义 OpenAI API: {base_url}")
+            http_client = config.get_httpx_client()
+            if http_client:
+                client_kwargs["http_client"] = http_client
+                logger.info(f"OpenAI 通过代理连接: {config.http_proxy}")
 
             self.client = OpenAI(**client_kwargs)
         else:
             self.client = None
         self.optimizer = ImagePromptOptimizer()
         self.model = model  # "dall-e-2" or "dall-e-3"
+        self._proxy_url = config.http_proxy
 
     async def get_image(self, prompt: str, topic: str) -> Optional[str]:
         """使用 DALL-E 生成图片 - 根据推文内容智能生成"""
@@ -151,7 +158,7 @@ class DALLEProvider(ImageProvider):
             image_url = response.data[0].url
 
             # 下载图片
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(proxy=self._proxy_url) as client:
                 image_response = await client.get(image_url)
 
                 image_path = Path(f"./temp/{self.model}_{hash(prompt)}.png")

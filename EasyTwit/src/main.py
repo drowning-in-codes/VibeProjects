@@ -150,17 +150,24 @@ async def cmd_setup():
     logger.info("  4. python -m src.main run     — 启动自动发帖")
 
 
-async def cmd_scrape(username: str = None, user_id: str = None, limit: int = 100):
-    """爬取目标用户的推文
+async def cmd_scrape(username: str = None, user_id: str = None, limit: int = 100,
+                     following: bool = False, timeline: bool = False):
+    """爬取推文
 
-    优先级: --username / --id > config.yaml targets.users
+    来源: --username/--id > --following > --timeline > config.yaml
     """
     db = Database()
     await db.initialize()
-
     scraper = TweetScraper(db)
 
-    # 确定爬取目标
+    if following:
+        await scraper.scrape_following(limit_per_user=limit)
+        return
+    if timeline:
+        await scraper.scrape_timeline(count=limit)
+        return
+
+    # 确定爬取目标用户名
     if username:
         users = [username.lstrip('@')]
     elif user_id:
@@ -322,31 +329,127 @@ async def cmd_post(topic: str = None, with_image: bool = None):
         print("\n✗ 发布失败")
 
 
-async def cmd_run():
+async def cmd_pipeline():
+    """完整流程: 爬取 → 蒸馏 → 发帖"""
+    import time
+    from datetime import datetime
+
+    start_time = time.time()
+    logger.info("=" * 60)
+    logger.info(f"Pipeline 开始 @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info("=" * 60)
+
+    db = Database()
+    await db.initialize()
+    scraper = TweetScraper(db)
+    pm = PersonaManager(db)
+    poster = Poster(db)
+
+    # ── Step 1: 爬取 ────────────────────────────────────
+    t1 = time.time()
+    source = config.scrape_source
+    user_list = config.target_users
+    logger.info(f"[1/3] 爬取推文 | 来源: {source} | 目标: {user_list or '自动检测'}")
+    tweets_collected = 0
+
+    scrape_limit = config.get('scheduler.scrape_limit', 50)
+    following_limit = config.get('scheduler.following_limit', 50)
+
+    if source == "following":
+        tweets = await scraper.scrape_following(limit_per_user=following_limit)
+        tweets_collected = len(tweets)
+    elif source == "timeline":
+        tweets = await scraper.scrape_timeline(count=scrape_limit)
+        tweets_collected = len(tweets)
+    else:
+        if user_list:
+            tweets = await scraper.scrape_users(user_list, limit_per_user=scrape_limit)
+            tweets_collected = len(tweets)
+        else:
+            logger.warning("  未配置目标用户，fallback → 关注列表")
+            tweets = await scraper.scrape_following(limit_per_user=following_limit)
+            tweets_collected = len(tweets)
+
+    logger.info(f"  ✓ 爬取完成: {tweets_collected} 条推文 ({time.time() - t1:.1f}s)")
+
+    # ── Step 2: 蒸馏 ────────────────────────────────────
+    t2 = time.time()
+    logger.info(f"[2/3] 蒸馏人格 | 目标用户: {user_list or '所有已爬取'}")
+    persona_count = 0
+
+    target_users = user_list or [t.get('username', '') for t in (tweets or [])][:5]
+    for username in target_users:
+        try:
+            await pm.distill_from_tweets(username)
+            persona_count += 1
+            logger.info(f"  ✓ @{username} 蒸馏成功")
+        except ValueError as e:
+            logger.warning(f"  ✗ @{username}: {e}")
+
+    if persona_count == 0:
+        # 自定义人格 fallback
+        custom = await pm.create_persona_from_config()
+        if custom:
+            persona_count = 1
+            logger.info(f"  使用自定义人格: {custom.tone[:40]}...")
+
+    logger.info(f"  ✓ 蒸馏完成: {persona_count} 个人格 ({time.time() - t2:.1f}s)")
+
+    # ── Step 3: 发帖 ────────────────────────────────────
+    t3 = time.time()
+    posts_today = await db.get_posts_today()
+    logger.info(f"[3/3] 发帖 | 今日已发: {posts_today}/{config.max_posts_per_day}")
+
+    result = await poster.post_now()
+    if result and result.status == "success":
+        elapsed = time.time() - start_time
+        logger.success(
+            f"  ✓ 发帖成功 | ID: {result.tweet_id} | "
+            f"内容长度: {len(result.content)} 字符"
+        )
+        logger.info(f"Pipeline 完成! 总耗时 {elapsed:.1f}s")
+    elif result and result.status == "dry_run":
+        logger.info(f"  ⊘ 预览模式 (dry run)")
+    else:
+        logger.warning(f"  ⊘ 发帖跳过 (已达限额 {config.max_posts_per_day}/天 或 失败)")
+
+
+async def cmd_run(cron: str = None, now: bool = False):
     """启动定时调度"""
     db = Database()
     await db.initialize()
 
-    poster = Poster(db)
-
     scheduler = Scheduler()
+    cron_expr = cron or config.post_cron
 
-    # 注册发帖任务
-    async def post_task():
-        await poster.post_now()
+    async def pipeline_task():
+        await cmd_pipeline()
 
     scheduler.add_task(
-        name="auto-post",
-        cron_expr=config.post_cron,
-        callback=post_task,
+        name="pipeline",
+        cron_expr=cron_expr,
+        callback=pipeline_task,
     )
 
     logger.info("=" * 50)
-    logger.info("EasyTwit 定时发帖已启动")
-    logger.info(f"Cron: {config.post_cron}")
+    logger.info("EasyTwit 定时调度已启动")
+    logger.info(f"任务: pipeline (爬取→蒸馏→发帖)")
+    logger.info(f"频率: {cron_expr}")
     logger.info(f"每日上限: {config.max_posts_per_day} 条")
+
+    # 显示下次执行时间
+    from croniter import croniter
+    from datetime import datetime
+    nxt = croniter(cron_expr, datetime.now()).get_next(datetime)
+    logger.info(f"下次执行: {nxt.strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("按 Ctrl+C 停止")
     logger.info("=" * 50)
+
+    # 首次立即执行（默认开启，确认流程可用）
+    if now or config.run_immediately:
+        logger.info(">>> 启动测试：立即执行一次 pipeline...")
+        await pipeline_task()
+        logger.info(">>> 测试完成，进入定时调度模式")
 
     try:
         await scheduler.start()
@@ -418,10 +521,17 @@ def main():
     subparsers.add_parser("setup", help="初始化数据库和目录")
 
     # scrape
-    sc_parser = subparsers.add_parser("scrape", help="爬取目标用户的推文")
+    sc_parser = subparsers.add_parser("scrape", help="爬取推文")
     sc_parser.add_argument("--username", "-u", type=str, help="X 用户名")
     sc_parser.add_argument("--id", "-i", type=str, help="X 用户 ID")
     sc_parser.add_argument("--limit", "-n", type=int, default=100, help="最大爬取数")
+    sc_parser.add_argument("--following", "-f", action="store_true",
+                           help="爬取关注列表中的用户")
+    sc_parser.add_argument("--timeline", "-t", action="store_true",
+                           help="爬取时间线上的推文")
+
+    # pipeline
+    subparsers.add_parser("pipeline", help="完整流程: 爬取→蒸馏→发帖")
 
     # distill
     subparsers.add_parser("distill", help="从推文蒸馏人格")
@@ -444,7 +554,11 @@ def main():
                             help="强制无图")
 
     # run
-    subparsers.add_parser("run", help="启动定时调度器")
+    run_parser = subparsers.add_parser("run", help="启动定时调度器")
+    run_parser.add_argument("--now", action="store_true",
+                            help="启动后立即执行一次")
+    run_parser.add_argument("--cron", "-c", type=str,
+                            help="临时 cron 表达式 (测试用, 如 */5 * * * *)")
 
     # trends
     tr_parser = subparsers.add_parser("trends", help="查看趋势")
@@ -469,10 +583,13 @@ def main():
     commands = {
         "auth": lambda: cmd_auth(port=getattr(args, 'port', 8000)),
         "setup": cmd_setup,
+        "pipeline": cmd_pipeline,
         "scrape": lambda: cmd_scrape(
             username=getattr(args, 'username', None),
             user_id=getattr(args, 'id', None),
-            limit=getattr(args, 'limit', 100)),
+            limit=getattr(args, 'limit', 100),
+            following=getattr(args, 'following', False),
+            timeline=getattr(args, 'timeline', False)),
         "distill": cmd_distill,
         "persona-custom": lambda: cmd_persona_custom(
             use_config=getattr(args, 'config', False)),
@@ -485,7 +602,9 @@ def main():
             woeid=getattr(args, 'woeid', '1'),
             count=getattr(args, 'count', 20),
             personalized=getattr(args, 'personalized', False)),
-        "run": cmd_run,
+        "run": lambda: cmd_run(
+            cron=getattr(args, 'cron', None),
+            now=getattr(args, 'now', False)),
         "status": cmd_status,
     }
 

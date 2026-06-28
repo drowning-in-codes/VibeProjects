@@ -48,13 +48,46 @@ class TweetScraper:
 
         # 解析推文
         tweets = self._parse_tweets(raw_tweets, username, source='crawl')
-
-        # 去重并保存
         unique = self._deduplicate(tweets)
         if unique:
             await self.db.save_tweets(unique)
             logger.info(f"爬取完成 @{username}: 收集 {len(unique)} 条推文")
+        return unique
 
+    async def scrape_following(self, limit_per_user: int = 50) -> List[Tweet]:
+        """爬取所有关注用户的推文"""
+        followings = self.client.following(count=200)
+        if not followings:
+            logger.error("获取关注列表失败或为空")
+            return []
+
+        usernames = [f.get('username', '') for f in followings if f.get('username')]
+        logger.info(f"从关注列表获取 {len(usernames)} 个用户")
+        return await self.scrape_users(usernames[:20], limit_per_user=limit_per_user)
+
+    async def scrape_timeline(self, count: int = 100) -> List[Tweet]:
+        """爬取时间线上的推文（不用搜索，直接保存）"""
+        raw = self.client.timeline(count=count)
+        if not raw:
+            return []
+
+        all_tweets = []
+        for t in raw:
+            try:
+                author = t.get('author_id', '') or (t.get('author', {}) or {}).get('username', '')
+                content = t.get('text', t.get('content', ''))
+                tid = str(t.get('id', ''))
+                if tid and content:
+                    all_tweets.append(Tweet(
+                        tweet_id=tid, username=author, content=content,
+                        source='timeline'))
+            except Exception:
+                continue
+
+        unique = self._deduplicate(all_tweets)
+        if unique:
+            await self.db.save_tweets(unique)
+            logger.info(f"时间线爬取: {len(unique)} 条推文")
         return unique
 
     async def scrape_users(self, usernames: List[str],
