@@ -150,7 +150,7 @@ async def cmd_setup():
     logger.info("  4. python -m src.main run     — 启动自动发帖")
 
 
-async def cmd_scrape(username: str = None, user_id: str = None, limit: int = 100,
+async def cmd_scrape(username: str = None, user_id: str = None, limit: int = 5,
                      following: bool = False, timeline: bool = False):
     """爬取推文
 
@@ -161,7 +161,7 @@ async def cmd_scrape(username: str = None, user_id: str = None, limit: int = 100
     scraper = TweetScraper(db)
 
     if following:
-        await scraper.scrape_following(limit_per_user=limit)
+        await scraper.scrape_following(limit)
         return
     if timeline:
         await scraper.scrape_timeline(count=limit)
@@ -189,7 +189,7 @@ async def cmd_scrape(username: str = None, user_id: str = None, limit: int = 100
             return
 
     logger.info(f"开始爬取 {len(users)} 个用户: {', '.join(users)}")
-    await scraper.scrape_users(users, limit_per_user=limit)
+    await scraper.scrape_users(users, limit)
 
     # 统计
     for user in users:
@@ -233,12 +233,17 @@ async def cmd_persona_custom(use_config: bool = False):
     pm = PersonaManager(db)
 
     if use_config:
-        # 从 config.yaml 读取
+        # 从 personas/ 模板加载
+        from .config import config as cfg
+        tmpl = cfg.persona_template
+        if not tmpl:
+            logger.error("未配置人格模板 (config.yaml targets.persona_template 为空)")
+            return
         persona = await pm.create_persona_from_config()
         if persona:
-            logger.success(f"自定义人格已创建: {persona.tone}")
+            logger.success(f"从模板 '{tmpl}' 创建人格: {persona.tone}")
         else:
-            logger.error("请在 config.yaml 中启用 targets.custom_persona")
+            logger.error(f"模板加载失败: personas/{tmpl}.yaml")
         return
 
     # 交互式输入
@@ -352,11 +357,11 @@ async def cmd_pipeline():
     logger.info(f"[1/3] 爬取推文 | 来源: {source} | 目标: {user_list or '自动检测'}")
     tweets_collected = 0
 
-    scrape_limit = config.get('scheduler.scrape_limit', 50)
-    following_limit = config.get('scheduler.following_limit', 50)
+    scrape_limit = config.get('scheduler.scrape_limit', 5)
+    following_limit = config.get('scheduler.following_limit', 5)
 
     if source == "following":
-        tweets = await scraper.scrape_following(limit_per_user=following_limit)
+        tweets = await scraper.scrape_following(following_limit)
         tweets_collected = len(tweets)
     elif source == "timeline":
         tweets = await scraper.scrape_timeline(count=scrape_limit)
@@ -367,7 +372,7 @@ async def cmd_pipeline():
             tweets_collected = len(tweets)
         else:
             logger.warning("  未配置目标用户，fallback → 关注列表")
-            tweets = await scraper.scrape_following(limit_per_user=following_limit)
+            tweets = await scraper.scrape_following(following_limit=following_limit, limit_per_user=scrape_limit)
             tweets_collected = len(tweets)
 
     logger.info(f"  ✓ 爬取完成: {tweets_collected} 条推文 ({time.time() - t1:.1f}s)")
@@ -377,7 +382,7 @@ async def cmd_pipeline():
     logger.info(f"[2/3] 蒸馏人格 | 目标用户: {user_list or '所有已爬取'}")
     persona_count = 0
 
-    target_users = user_list or [t.get('username', '') for t in (tweets or [])][:5]
+    target_users = user_list or [t.username for t in (tweets or []) if t.username][:5]
     for username in target_users:
         try:
             await pm.distill_from_tweets(username)
@@ -414,7 +419,40 @@ async def cmd_pipeline():
         logger.warning(f"  ⊘ 发帖跳过 (已达限额 {config.max_posts_per_day}/天 或 失败)")
 
 
-async def cmd_run(cron: str = None, now: bool = False):
+async def cmd_easy():
+    """轻量模式: 随机人格 → 生成 → 发帖 (跳过爬取蒸馏)"""
+    import time
+    from datetime import datetime
+
+    start = time.time()
+    logger.info("=" * 50)
+    logger.info(f"Easy 模式 @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    db = Database()
+    await db.initialize()
+    pm = PersonaManager(db)
+    poster = Poster(db)
+
+    # Step 1: 随机人格
+    logger.info("[1/2] 加载人格...")
+    persona = await pm.create_persona_from_template()
+    if not persona:
+        persona = await db.get_latest_persona()
+    if not persona:
+        logger.error("无可用人格")
+        return
+    logger.info(f"  人格: @{persona.username} — {persona.tone[:40]}...")
+
+    # Step 2: 发帖
+    logger.info(f"[2/2] 发帖 | 今日已发: {await db.get_posts_today()}/{config.max_posts_per_day}")
+    result = await poster.post(persona=persona)
+    if result and result.status == "success":
+        logger.success(f"Easy 发帖成功 | ID: {result.tweet_id} | {time.time()-start:.1f}s")
+    else:
+        logger.warning("发帖跳过 (达限额或失败)")
+
+
+async def cmd_run(cron: str = None, now: bool = False, easy: bool = False):
     """启动定时调度"""
     db = Database()
     await db.initialize()
@@ -422,18 +460,23 @@ async def cmd_run(cron: str = None, now: bool = False):
     scheduler = Scheduler()
     cron_expr = cron or config.post_cron
 
-    async def pipeline_task():
-        await cmd_pipeline()
+    if easy:
+        async def easy_task():
+            await cmd_easy()
+        task_fn = easy_task
+        task_name = "easy (随机人格→发帖)"
+    else:
+        async def pipeline_task():
+            await cmd_pipeline()
+        task_fn = pipeline_task
+        task_name = "pipeline (爬取→蒸馏→发帖)"
 
-    scheduler.add_task(
-        name="pipeline",
-        cron_expr=cron_expr,
-        callback=pipeline_task,
-    )
+    scheduler.add_task(name="easy" if easy else "pipeline",
+                       cron_expr=cron_expr, callback=task_fn)
 
     logger.info("=" * 50)
     logger.info("EasyTwit 定时调度已启动")
-    logger.info(f"任务: pipeline (爬取→蒸馏→发帖)")
+    logger.info(f"模式: {task_name}")
     logger.info(f"频率: {cron_expr}")
     logger.info(f"每日上限: {config.max_posts_per_day} 条")
 
@@ -447,9 +490,17 @@ async def cmd_run(cron: str = None, now: bool = False):
 
     # 首次立即执行（默认开启，确认流程可用）
     if now or config.run_immediately:
-        logger.info(">>> 启动测试：立即执行一次 pipeline...")
-        await pipeline_task()
-        logger.info(">>> 测试完成，进入定时调度模式")
+        logger.info(f">>> 启动测试：立即执行一次 {task_name}...")
+        try:
+            await task_fn()
+            logger.info(">>> 测试完成，进入定时调度模式")
+        except Exception as e:
+            msg = str(e)
+            if "403" in msg or "401" in msg or "FatalApiError" in type(e).__name__:
+                logger.error(f"🛑 启动测试遇到致命错误, 调度器不启动: {msg[:200]}")
+                return
+            else:
+                logger.warning(f"⚠️  启动测试失败, 继续进入调度: {msg[:150]}")
 
     try:
         await scheduler.start()
@@ -559,6 +610,8 @@ def main():
                             help="启动后立即执行一次")
     run_parser.add_argument("--cron", "-c", type=str,
                             help="临时 cron 表达式 (测试用, 如 */5 * * * *)")
+    run_parser.add_argument("--easy", "-e", action="store_true",
+                            help="轻量模式: 跳过爬取蒸馏, 直接随机人格→发帖")
 
     # trends
     tr_parser = subparsers.add_parser("trends", help="查看趋势")
@@ -604,7 +657,8 @@ def main():
             personalized=getattr(args, 'personalized', False)),
         "run": lambda: cmd_run(
             cron=getattr(args, 'cron', None),
-            now=getattr(args, 'now', False)),
+            now=getattr(args, 'now', False),
+            easy=getattr(args, 'easy', False)),
         "status": cmd_status,
     }
 

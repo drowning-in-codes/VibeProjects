@@ -3,6 +3,8 @@
 使用 Claude API 分析推文风格并提取人格特征，支持自定义关键词/描述生成人格
 """
 import json
+import yaml
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from loguru import logger
@@ -94,6 +96,10 @@ class PersonaManager:
 
         # 保存到数据库
         await self.db.save_persona(persona)
+
+        # 回写到 personas/ 目录
+        self._save_persona_yaml(persona)
+
         logger.info(f"人格蒸馏完成: @{username}")
         return persona
 
@@ -166,19 +172,66 @@ class PersonaManager:
         logger.info(f"自定义人格已创建: '{name}'")
         return persona
 
-    async def create_persona_from_config(self) -> Optional[Persona]:
-        """从 config.yaml 创建自定义人格"""
-        if not config.custom_persona_enabled:
-            return None
+    def _save_persona_yaml(self, persona: Persona):
+        """将蒸馏后的人格保存为 personas/{username}.yaml 模板"""
+        tmpl_dir = Path("personas")
+        tmpl_dir.mkdir(parents=True, exist_ok=True)
+        path = tmpl_dir / f"{persona.username}.yaml"
 
-        cfg = config.custom_persona_config
+        data = {
+            "name": persona.username,
+            "description": persona.tone,
+            "keywords": persona.vocabulary[:15] if persona.vocabulary else [],
+            "tone": persona.tone,
+            "topics": persona.topics if persona.topics else [],
+        }
+
+        with open(path, 'w', encoding='utf-8') as f:
+            yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+        logger.info(f"人格模板已保存: {path}")
+
+    async def create_persona_from_template(self) -> Optional[Persona]:
+        """从 personas/ 目录加载 YAML 模板，用 AI 生成人格
+
+        template 为空或 "random" → 随机选一个
+        template = "tech-blogger" → 加载 personas/tech-blogger.yaml
+        """
+        import random as _random
+        template_name = config.persona_template
+
+        # 空或 random → 随机选
+        if not template_name or template_name == "random":
+            tmpl_dir = Path("personas")
+            if not tmpl_dir.exists():
+                logger.error("personas/ 目录不存在")
+                return None
+            files = list(tmpl_dir.glob("*.yaml"))
+            if not files:
+                logger.error("personas/ 目录无模板文件")
+                return None
+            path = _random.choice(files)
+            template_name = path.stem
+        else:
+            path = Path(f"personas/{template_name}.yaml")
+            if not path.exists():
+                logger.error(f"人格模板文件不存在: {path}")
+                return None
+
+        cfg = yaml.safe_load(path.read_text(encoding='utf-8'))
+        name = cfg.get('name', template_name)
+
+        logger.info(f"从模板创建人格: {name} ({path})")
         return await self.create_custom_persona(
-            name="custom",
+            name=name,
             description=cfg.get('description', ''),
             keywords=cfg.get('keywords', []),
             tone=cfg.get('tone', ''),
             topics=cfg.get('topics'),
         )
+
+    async def create_persona_from_config(self) -> Optional[Persona]:
+        """兼容旧接口，实际调用 create_persona_from_template"""
+        return await self.create_persona_from_template()
 
     # ═══════════════════════════════════════════════════════════════
     # 内部方法

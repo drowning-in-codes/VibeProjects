@@ -38,21 +38,8 @@ targets:
       enabled: false
     - username: karpathy
       enabled: false
-  custom_persona:
-    enabled: true
-    description: "一个关注AI和科技前沿的理性思考者"
-    keywords:
-      - AI
-      - 科技
-      - 编程
-      - 创业
-      - 未来
-    tone: "专业、理性、偶尔幽默"
-    topics:
-      - 人工智能
-      - 开源技术
-      - 科技趋势
-      - 产品思考
+  # 人格模板 (personas/*.yaml, 空或 random=随机, 指定名=固定)
+  persona_template: random
 
 # ── Scheduler ────────────────────────────────────────────
 scheduler:
@@ -60,8 +47,8 @@ scheduler:
   post_cron: "0 */4 * * *"
   max_posts_per_day: 6
   # 爬取配置
-  scrape_limit: 20    # 每次爬取每个用户最大推文数
-  following_limit: 20 # 关注列表爬取最大用户数
+  scrape_limit: 5     # 每次爬取每个用户最大推文数
+  following_limit: 5  # 关注列表爬取最大用户数
 
 # ── Database ──────────────────────────────────────────────
 database:

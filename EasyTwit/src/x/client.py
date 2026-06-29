@@ -17,6 +17,20 @@ from xdk.media.models import (
 from ..config import config
 
 
+class FatalApiError(Exception):
+    """致命 API 错误 (403/401), 应停止调度"""
+    pass
+
+
+def _check_fatal(e: Exception, context: str = ""):
+    """检测 403/401 错误并抛出 FatalApiError"""
+    msg = str(e)
+    for code in ("403", "401"):
+        if code in msg:
+            logger.error(f"🚫 致命 API 错误 ({code}): {context} — {msg[:150]}")
+            raise FatalApiError(f"[{code}] {context}: {msg[:200]}") from e
+
+
 def _unwrap(response) -> Optional[Dict[str, Any]]:
     """从 XDK Pydantic 响应中提取 data dict"""
     if response is None:
@@ -100,7 +114,11 @@ class XClient:
         body = CreateRequest(text=text, media=media)
 
         logger.info(f"发布推文: {text[:60]}...")
-        result = self._client.posts.create(body=body)
+        try:
+            result = self._client.posts.create(body=body)
+        except Exception as e:
+            _check_fatal(e, "发帖")
+            raise
         data = _unwrap(result) or {}
         tweet_id = data.get('id', '')
         logger.success(f"推文发布成功! ID: {tweet_id}")
@@ -194,7 +212,7 @@ class XClient:
     # 搜索
     # ═══════════════════════════════════════════════════════════════
 
-    def search(self, query: str, count: int = 10,
+    def search(self, query: str, count: int = 5,
                recent: bool = True) -> List[Dict[str, Any]]:
         self._require()
         logger.info(f"搜索: '{query}', count={count}")
@@ -208,14 +226,14 @@ class XClient:
             logger.error(f"搜索失败: {e}")
             return []
 
-    def search_user(self, username: str, count: int = 50) -> List[Dict[str, Any]]:
+    def search_user(self, username: str, count: int = 5) -> List[Dict[str, Any]]:
         return self.search(f"from:{username}", count=count)
 
     # ═══════════════════════════════════════════════════════════════
     # 社交图谱
     # ═══════════════════════════════════════════════════════════════
 
-    def following(self, count: int = 50) -> List[Dict[str, Any]]:
+    def following(self, count: int = 5) -> List[Dict[str, Any]]:
         """获取关注列表 (需要用户 ID, 不是 'me')"""
         self._require()
         try:
@@ -241,7 +259,7 @@ class XClient:
             logger.error(f"获取关注列表失败: {e}")
             return []
 
-    def timeline_users(self, count: int = 50) -> List[str]:
+    def timeline_users(self, count: int = 5) -> List[str]:
         """从时间线推文中提取活跃用户"""
         tweets = self.timeline(count=count)
         users = set()
@@ -255,7 +273,7 @@ class XClient:
     # 用户
     # ═══════════════════════════════════════════════════════════════
 
-    def timeline(self, count: int = 20) -> List[Dict[str, Any]]:
+    def timeline(self, count: int = 5) -> List[Dict[str, Any]]:
         self._require()
         try:
             results = []
@@ -272,13 +290,19 @@ class XClient:
             logger.error(f"获取时间线失败: {e}")
             return []
 
-    def user_posts(self, user_id: str, count: int = 50) -> List[Dict[str, Any]]:
+    def user_posts(self, user_id: str, count: int = 5) -> List[Dict[str, Any]]:
         self._require()
         try:
-            result = self._client.users.get_posts(user_id, max_results=count)
-            data = _unwrap(result)
-            posts = data.get('data', data) if isinstance(data, dict) else data
-            return posts if isinstance(posts, list) else []
+            results = []
+            for page in self._client.users.get_posts(
+                    user_id, max_results=min(count, 100)):
+                data = _unwrap(page)
+                posts = data.get('data', data) if isinstance(data, dict) else data
+                if isinstance(posts, list):
+                    results.extend(posts)
+                    if len(results) >= count:
+                        break
+            return results[:count]
         except Exception as e:
             logger.error(f"获取用户推文失败: {e}")
             return []

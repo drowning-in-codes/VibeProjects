@@ -184,14 +184,9 @@ class Config:
         return self.get('targets.scrape_source', 'users')
 
     @property
-    def custom_persona_enabled(self) -> bool:
-        """是否启用自定义人格"""
-        return self.get('targets.custom_persona.enabled', False)
-
-    @property
-    def custom_persona_config(self) -> dict:
-        """自定义人格配置"""
-        return self.get('targets.custom_persona', {})
+    def persona_template(self) -> str:
+        """人格模板名 (personas/{name}.yaml, 空字符串表示不使用)"""
+        return self.get('targets.persona_template', '')
 
     # ── Scheduler ─────────────────────────────────────────
 

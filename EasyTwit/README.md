@@ -29,25 +29,19 @@ XDK 文档: https://docs.x.com/xdks/python/reference/modules
 
 ```bash
 cp .env.example .env
-```
-
-必填:
-```bash
+# 必填
 ANTHROPIC_API_KEY=sk-ant-...          # Claude API
 X_API_KEY=...                          # Consumer Key
 X_API_SECRET=...                       # Consumer Secret
 X_ACCESS_TOKEN=...                     # OAuth 1.0a Access Token
 X_ACCESS_TOKEN_SECRET=...              # OAuth 1.0a Access Token Secret
-```
-
-可选:
-```bash
-X_BEARER_TOKEN=...                     # Bearer Token (趋势接口)
+# 可选
+X_BEARER_TOKEN=...                     # 趋势接口
 NANOBANANA_API_KEY=sk-...              # 图片生成 (主)
 OPENAI_API_KEY=sk-...                  # 图片生成 (备)
 ```
 
-或使用 OAuth 自动认证 (仅需 API Key + Secret):
+或使用 OAuth 自动认证:
 ```bash
 python -m src auth          # 浏览器授权 → 自动写入 .env
 ```
@@ -58,62 +52,25 @@ python -m src auth          # 浏览器授权 → 自动写入 .env
 pip install -r requirements.txt
 ```
 
-### 4. Docker 部署 (可选)
-
-```bash
-# 构建镜像
-docker build -t easytwit .
-
-# 初始化数据库
-docker run --rm \
-  -v ./data:/app/data \
-  -v ./.env:/app/.env \
-  easytwit python -m src setup
-
-# 交互式创建人格
-docker run -it --rm \
-  -v ./.env:/app/.env \
-  -v ./data:/app/data \
-  easytwit python -m src persona-custom
-
-# 手动发帖
-docker run --rm \
-  -v ./.env:/app/.env \
-  -v ./data:/app/data \
-  easytwit python -m src post -t "AI"
-
-# 后台运行定时调度
-docker compose up -d
-
-# 查看状态
-docker compose run --rm easytwit python -m src status
-
-# 查看日志
-docker compose logs -f
-
-# 停止
-docker compose down
-```
-
 ## CLI 命令
 
 | 命令 | 说明 |
 |------|------|
 | `python -m src auth` | OAuth 1.0a 浏览器认证 |
 | `python -m src setup` | 初始化数据库和目录 |
-| `python -m src scrape` | 爬取 config.yaml 中配置的目标用户 |
-| `python -m src scrape -u username` | 按用户名爬取 |
-| `python -m src scrape -i user_id` | 按 ID 爬取 |
-| `python -m src scrape -u elonmusk -n 50` | 指定用户 + 数量 |
+| `python -m src scrape -u username` | 按用户名爬取推文 |
+| `python -m src scrape -f` | 爬取关注列表 |
+| `python -m src scrape -t` | 爬取时间线 |
 | `python -m src distill` | 从推文蒸馏人格 |
-| `python -m src persona-custom` | 交互式创建自定义人格 |
-| `python -m src persona-custom --config` | 从 config.yaml 读取人格配置 |
-| `python -m src generate [-t topic]` | 生成推文预览 |
-| `python -m src post [-t topic]` | 生成并发布推文 |
-| `python -m src trends [-w worldwide]` | 查看趋势 |
-| `python -m src trends -p` | 个性趋势 |
-| `python -m src run` | 启动定时调度器 |
-| `python -m src status` | 查看应用状态 |
+| `python -m src persona-custom` | 交互式创建人格 (逐步输入) |
+| `python -m src persona-custom --config` | 从模板创建人格 |
+| `python -m src generate -t topic` | 生成推文预览 |
+| `python -m src post -t topic` | 发布推文 (过长自动 thread) |
+| `python -m src pipeline` | 完整流程: 爬取→蒸馏→发帖 |
+| `python -m src trends -w worldwide` | 全球趋势 |
+| `python -m src run --now` | 定时调度 (启动即执行完整 pipeline) |
+| `python -m src run --easy --now` | 轻量调度 (跳过爬取, 直接随机人格→发帖) |
+| `python -m src status` | 查看状态 |
 
 ## 项目结构
 
@@ -121,25 +78,37 @@ docker compose down
 EasyTwit/
 ├── src/
 │   ├── main.py               # CLI 入口 + 命令路由
-│   ├── config.py             # YAML + .env 配置管理
-│   ├── poster.py             # 推文发布整合 (生成+上传+发布)
-│   ├── scheduler.py          # Cron 定时调度器
-│   ├── x/
-│   │   ├── client.py         # XDK 客户端 (posts/search/users/media/trends)
+│   ├── config.py             # YAML + .env 配置
+│   ├── poster.py             # 推文发布整合
+│   ├── scheduler.py          # Cron 定时调度
+│   ├── x/                    # X/Twitter 模块
+│   │   ├── client.py         # XDK 客户端
 │   │   ├── scraper.py        # 推文爬取器
-│   │   └── auth.py           # OAuth 1.0a 三步认证 (web服务器+浏览器)
-│   ├── ai/
-│   │   ├── persona.py        # 人格蒸馏 + 交互式自定义生成
-│   │   ├── generator.py      # 推文内容生成 + 智能配图判断
-│   │   ├── image.py          # nanobanana(主) + GPT-Image-2(备) 配图
-│   │   └── fallback.py       # API 主备切换工具
-│   └── storage/
+│   │   └── auth.py           # OAuth 三步认证
+│   ├── ai/                   # AI 模块
+│   │   ├── persona.py        # 人格蒸馏 + 模板加载
+│   │   ├── generator.py      # 推文生成 + Prompt 模板
+│   │   ├── image.py          # nanobanana + GPT-Image-2
+│   │   └── fallback.py       # API 主备切换
+│   └── storage/              # 持久化
 │       ├── models.py         # Tweet / Persona / PostHistory
-│       └── database.py       # SQLite 异步持久化
+│       └── database.py       # SQLite
+├── personas/                 # 人格模板 + 蒸馏自动保存
+│   ├── tech-blogger.yaml
+│   ├── life-observer.yaml
+│   ├── career-survivor.yaml
+│   ├── gen-z-trendy.yaml
+│   ├── casual-observer.yaml
+│   └── {username}.yaml       # distill 蒸馏自动生成
+├── prompts/                  # Prompt 模板目录
+│   ├── viral.md
+│   ├── professional.md
+│   └── casual.md
 ├── tests/
-│   ├── test_image_api.py     # 图片 API 测试
-│   └── test_users.py         # 用户查询 API 测试
-├── Dockerfile / docker-compose.yml / .dockerignore
+│   ├── test_image_api.py
+│   ├── test_users.py
+│   └── test_scrape.py
+├── Dockerfile / docker-compose.yml
 ├── config.yaml / .env.example / requirements.txt
 └── README.md
 ```
@@ -149,130 +118,156 @@ EasyTwit/
 ### config.yaml
 
 ```yaml
-# 目标用户 (爬取+蒸馏人格)
 targets:
-  users:
+  scrape_source: users          # users | following | timeline
+  users:                        # 目标用户 (scrape_source=users 时生效)
     - username: elonmusk
       enabled: true
-  # 自定义人格 (--config 模式读取)
-  custom_persona:
-    enabled: true
-    description: "一个关注AI和科技前沿的理性思考者"
-    keywords: [AI, 科技, 编程, 创业]
-    tone: "专业、理性、偶尔幽默"
-    topics: [人工智能, 开源技术, 科技趋势]
+  persona_template: random      # 人格模板: random | tech-blogger | 留空随机
 
-# 定时调度
+anthropic:
+  model: deepseek-v4-pro
+  prompt_template: prompts/viral.md  # prompt 模板: viral | professional | casual | 留空
+
 scheduler:
-  post_cron: "0 */4 * * *"   # 每4小时
+  run_immediately: true         # 启动时立即执行一次
+  post_cron: "0 */4 * * *"     # 定时频率
   max_posts_per_day: 6
+  scrape_limit: 50              # 每次爬取上限
+  following_limit: 50           # 关注列表上限
 
-# 图片生成模型
 nanobanana:
-  model: nano-banana
+  model: nano-banana            # 图片生成模型
+
+image:
+  enabled: true
+  output_dir: ./data/images
 ```
 
-### .env 完整配置
+## 人格系统
+
+### 模板方式 (推荐)
 
 ```bash
-# ── X/Twitter ──
-X_API_KEY=...                          # Consumer Key (API Key)
-X_API_SECRET=...                       # Consumer Secret
-X_ACCESS_TOKEN=...                     # OAuth 1.0a Access Token
-X_ACCESS_TOKEN_SECRET=...              # OAuth 1.0a Access Token Secret
-X_BEARER_TOKEN=...                     # Bearer Token (趋势接口, 可选)
+# 编辑或创建 personas/xxx.yaml, 然后在 config.yaml 中引用
+persona_template: tech-blogger   # 固定模板
+persona_template: random          # 随机选一个
+persona_template:                 # 空 → 随机
 
-# ── Claude API ──
-ANTHROPIC_API_KEY=sk-ant-...
-# ANTHROPIC_BASE_URL=https://api.anthropic.com
-# ANTHROPIC_BACKUP_API_KEY=...         # 备用, 主失败自动切换
-# ANTHROPIC_BACKUP_BASE_URL=...
-
-# ── 图片生成 ──
-# Primary: nanobanana (Gemini API 格式)
-NANOBANANA_API_KEY=sk-...
-# NANOBANANA_BASE_URL=https://autorouter.io
-
-# Backup: GPT-Image-2 (Chat Completions 格式)
-OPENAI_API_KEY=sk-...
-# OPENAI_BASE_URL=https://autorouter.io/v1
-
-# ── 代理 ──
-# HTTPS_PROXY=http://127.0.0.1:7890
+# 从模板创建
+python -m src persona-custom --config
 ```
 
-## 认证体系
+模板格式 (`personas/tech-blogger.yaml`):
 
-| 认证方式 | 用途 | 配置 |
-|----------|------|------|
-| OAuth 1.0a (User Context) | 发帖/删除/点赞/搜索/用户操作 | 4件套 |
-| Bearer Token (App-Only) | 趋势/公开接口 | X_BEARER_TOKEN |
+```yaml
+name: 科技博主
+description: 关注AI和科技前沿的理性思考者
+keywords: [AI, 大模型, 开源, 第一性原理]
+tone: 专业、理性、偶尔冷幽默
+topics: [人工智能, 开源技术, 科技趋势]
+```
 
-## 人格来源
+### 交互方式
 
-### 1. 交互式创建 (推荐)
 ```bash
 python -m src persona-custom
 # 逐步输入: 名称 → 描述 → 关键词 → 语气 → 话题
-# AI 生成完整人格画像
 ```
 
-### 2. 蒸馏模式
+### 蒸馏方式
+
 ```bash
-# config.yaml 配置目标用户 → 爬取推文 → 分析风格
-python -m src scrape
-python -m src distill
+python -m src scrape -u elonmusk   # 爬取推文
+python -m src distill              # Claude 分析 → 人格
+# 蒸馏后自动保存为 personas/{username}.yaml, 下次可随机复用
+```
+
+### 模板列表
+
+| 文件 | 人格 | 风格 |
+|------|------|------|
+| `tech-blogger.yaml` | 科技博主 | 理性分析，第一性原理 |
+| `life-observer.yaml` | 文科生活家 | 细腻温暖，观察人性 |
+| `career-survivor.yaml` | 职场老江湖 | 犀利务实，考公考研职场 |
+| `gen-z-trendy.yaml` | 追热点年轻人 | 5G冲浪，玩梗吃瓜 |
+| `casual-observer.yaml` | 随性观察者 | 轻松生活化聊技术 |
+| `{username}.yaml` | 蒸馏生成 | `scrape`→`distill` 自动保存 |
+
+## Prompt 模板
+
+`prompts/` 目录下的 `.md` 文件，在每次发帖前注入到 AI prompt 中：
+
+| 文件 | 风格 |
+|------|------|
+| `viral.md` | 知乎/推特热度写法 |
+| `professional.md` | 严谨专业 |
+| `casual.md` | 随性日常 |
+
+```yaml
+# config.yaml
+anthropic:
+  prompt_template: prompts/viral.md  # 或留空跳过
 ```
 
 ## 图片生成链
 
 ```
-nanobanana (Gemini API, 默认 nano-banana)
+nanobanana (Gemini API)
     ↓ 失败
 GPT-Image-2 (Chat Completions)
     ↓ 失败
 纯文本发布 (不阻断)
 ```
 
-## 依赖
+## 调度器
 
-| 包 | 用途 |
-|---|------|
-| [xdk](https://pypi.org/project/xdk/) | X/Twitter 官方 Python SDK |
-| [anthropic](https://pypi.org/project/anthropic/) | Claude API |
-| openai | GPT-Image-2 + DALL-E |
-| loguru | 日志 |
-| aiosqlite | SQLite 异步访问 |
-| croniter | Cron 调度 |
-| httpx | HTTP 客户端 (nanobanana 调用等) |
+```bash
+python -m src run                 # 完整 pipeline: 爬取→蒸馏→发帖
+python -m src run --easy          # 轻量模式: 随机人格→发帖 (不爬取不蒸馏)
+python -m src run --easy --now    # 立即测试轻量模式
+python -m src run --cron "*/30 * * * *"  # 自定义频率
+```
 
-## X API 层级说明
+配置:
 
-X API v2 采用付费制，部分接口需要付费层级：
+```yaml
+scheduler:
+  run_immediately: true        # 启动立即执行, 测试可用性
+  post_cron: "0 */4 * * *"    # 定时频率
+  max_posts_per_day: 6         # 每日上限
+```
 
-| 接口 | 最低层级 | 说明 |
-|------|----------|------|
-| `posts.create` (发帖) | Free | OAuth 1.0a User Context |
-| `users.get_me` (自己的信息) | Free | OAuth 1.0a |
-| `trends.get_by_woeid` (趋势) | Free (App-Only) | Bearer Token |
-| `users.get_by_username` (查询用户) | Basic ($100/月) | 402 表示需升级 |
-| `posts.search_recent` (搜索) | Basic ($100/月) | 402 表示需升级 |
+## Docker 部署
 
-> 当前账户为 Free 层级，发帖/趋势/自己信息可用。爬取和搜索需升级至 Basic。
+```bash
+docker build -t easytwit .
+docker run --rm -v ./data:/app/data -v ./.env:/app/.env easytwit python -m src setup
+docker run -it --rm -v ./.env:/app/.env -v ./data:/app/data easytwit python -m src persona-custom
+docker compose up -d            # 后台定时调度
+docker compose run --rm easytwit python -m src status
+docker compose logs -f
+```
+
+## X API 层级
+
+| 接口 | 层级 | 说明 |
+|------|------|------|
+| `posts.create` (发帖) | Free | OAuth 1.0a |
+| `users.get_me` | Free | OAuth 1.0a |
+| `trends.get_by_woeid` | Free | Bearer Token |
+| `users.get_by_username` | Basic ($100/月) | 搜索/爬取需升级 |
 
 ## 测试
 
 ```bash
-# 图片生成 API 测试
 python tests/test_image_api.py
-
-# 用户查询 API 测试
 python tests/test_users.py
+python tests/test_scrape.py
 ```
 
-## 参考链接
+## 参考
 
-- XDK Python SDK 模块参考: https://docs.x.com/xdks/python/reference/modules
-- XDK 认证文档: https://docs.x.com/xdks/python/authentication
-- X Developer Portal: https://developer.x.com/en/portal/dashboard
-- X API 层级定价: https://developer.x.com/en/portal/products
+- XDK 模块参考: https://docs.x.com/xdks/python/reference/modules
+- XDK 认证: https://docs.x.com/xdks/python/authentication
+- X Developer Portal: https://developer.x.com

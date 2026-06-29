@@ -18,7 +18,7 @@ class TweetScraper:
         self.db = db
         self.client = client or XClient()
 
-    async def scrape_user(self, username: str, limit: int = 100) -> List[Tweet]:
+    async def scrape_user(self, username: str, limit: int = 5) -> List[Tweet]:
         """爬取指定用户的推文
 
         Args:
@@ -44,7 +44,6 @@ class TweetScraper:
         if not raw_tweets:
             logger.warning(f"未找到 @{username} 的推文")
             return []
-            return []
 
         # 解析推文
         tweets = self._parse_tweets(raw_tweets, username, source='crawl')
@@ -54,9 +53,9 @@ class TweetScraper:
             logger.info(f"爬取完成 @{username}: 收集 {len(unique)} 条推文")
         return unique
 
-    async def scrape_following(self, limit_per_user: int = 50) -> List[Tweet]:
+    async def scrape_following(self, following_limit: int = 5, limit_per_user=5) -> List[Tweet]:
         """爬取所有关注用户的推文"""
-        followings = self.client.following(count=200)
+        followings = self.client.following(count=following_limit)
         if not followings:
             logger.error("获取关注列表失败或为空")
             return []
@@ -65,7 +64,7 @@ class TweetScraper:
         logger.info(f"从关注列表获取 {len(usernames)} 个用户")
         return await self.scrape_users(usernames[:20], limit_per_user=limit_per_user)
 
-    async def scrape_timeline(self, count: int = 100) -> List[Tweet]:
+    async def scrape_timeline(self, count: int = 5) -> List[Tweet]:
         """爬取时间线上的推文（不用搜索，直接保存）"""
         raw = self.client.timeline(count=count)
         if not raw:
@@ -91,7 +90,7 @@ class TweetScraper:
         return unique
 
     async def scrape_users(self, usernames: List[str],
-                           limit_per_user: int = 100) -> List[Tweet]:
+                           limit_per_user: int = 5) -> List[Tweet]:
         """爬取多个用户的推文
 
         Args:

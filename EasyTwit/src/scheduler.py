@@ -56,7 +56,18 @@ class Scheduler:
                         await task['callback']()
                         logger.info(f"✅ 任务 '{task['name']}' 执行完成")
                     except Exception as e:
-                        logger.error(f"❌ 任务 '{task['name']}' 执行失败: {e}")
+                        from .x.client import FatalApiError
+                        msg = str(e)
+                        if isinstance(e, FatalApiError) or "FatalApiError" in type(e).__name__:
+                            logger.error(f"🛑 致命错误, 停止调度器: {e}")
+                            self._running = False
+                            break
+                        elif "403" in msg or "401" in msg:
+                            logger.error(f"🛑 API 权限错误, 停止调度器: {msg[:200]}")
+                            self._running = False
+                            break
+                        else:
+                            logger.error(f"❌ 任务 '{task['name']}' 执行失败, 等待下次: {msg[:150]}")
 
                     # 获取下次时间
                     next_next = cron.get_next(datetime)
