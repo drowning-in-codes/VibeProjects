@@ -185,15 +185,30 @@ class Config:
 
     @property
     def persona_template(self) -> str:
-        """人格模板名 (personas/{name}.yaml, 空字符串表示不使用)"""
+        """兼容旧接口"""
         return self.get('targets.persona_template', '')
+
+    @property
+    def persona_group(self) -> str:
+        """人格组 (random | tech | social | career | finance)"""
+        return self.get('targets.persona_group', 'random')
+
+    @property
+    def reference_tweet_count(self) -> int:
+        """生成时带入的参考推文数"""
+        return self.get('targets.reference_tweet_count', 2)
 
     # ── Scheduler ─────────────────────────────────────────
 
     @property
     def post_cron(self) -> str:
-        """发布任务 cron 表达式"""
+        """发帖 cron"""
         return self.get('scheduler.post_cron', '0 */4 * * *')
+
+    @property
+    def distill_cron(self) -> str:
+        """爬取蒸馏 cron (如 "0 0 */14 * *" 每两周)"""
+        return self.get('scheduler.distill_cron', '0 0 */14 * *')
 
     @property
     def max_posts_per_day(self) -> int:

@@ -191,36 +191,45 @@ class PersonaManager:
         logger.info(f"人格模板已保存: {path}")
 
     async def create_persona_from_template(self) -> Optional[Persona]:
-        """从 personas/ 目录加载 YAML 模板，用 AI 生成人格
+        """从 personas/ 子目录按组加载模板
 
-        template 为空或 "random" → 随机选一个
-        template = "tech-blogger" → 加载 personas/tech-blogger.yaml
+        persona_group=random → 随机选组 → 组内随机选人格
+        persona_group=tech   → 从 personas/tech/ 随机选
         """
         import random as _random
-        template_name = config.persona_template
+        group = config.persona_group
+        root = Path("personas")
 
-        # 空或 random → 随机选
-        if not template_name or template_name == "random":
-            tmpl_dir = Path("personas")
-            if not tmpl_dir.exists():
-                logger.error("personas/ 目录不存在")
-                return None
-            files = list(tmpl_dir.glob("*.yaml"))
-            if not files:
-                logger.error("personas/ 目录无模板文件")
-                return None
-            path = _random.choice(files)
-            template_name = path.stem
+        if not root.exists():
+            logger.error("personas/ 目录不存在")
+            return None
+
+        # 收集所有组
+        groups = [d for d in root.iterdir() if d.is_dir()]
+        if not groups:
+            logger.error("personas/ 无子目录 (组)")
+            return None
+
+        # 选组
+        if group == "random":
+            chosen = _random.choice(groups)
         else:
-            path = Path(f"personas/{template_name}.yaml")
-            if not path.exists():
-                logger.error(f"人格模板文件不存在: {path}")
+            chosen = root / group
+            if not chosen.exists():
+                logger.error(f"人格组不存在: {group}")
                 return None
 
-        cfg = yaml.safe_load(path.read_text(encoding='utf-8'))
-        name = cfg.get('name', template_name)
+        # 组内选人格
+        files = list(chosen.glob("*.yaml"))
+        if not files:
+            logger.error(f"组 '{chosen.name}' 无模板文件")
+            return None
 
-        logger.info(f"从模板创建人格: {name} ({path})")
+        path = _random.choice(files)
+        cfg = yaml.safe_load(path.read_text(encoding='utf-8'))
+        name = cfg.get('name', path.stem)
+
+        logger.info(f"人格组: {chosen.name} → {name} ({path})")
         return await self.create_custom_persona(
             name=name,
             description=cfg.get('description', ''),

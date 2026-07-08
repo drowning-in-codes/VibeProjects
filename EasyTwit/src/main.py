@@ -118,6 +118,7 @@ async def cmd_setup():
     dirs = [
         "./data",
         "./data/images",
+        "./data/tweets",
         "./logs",
     ]
     for d in dirs:
@@ -297,7 +298,10 @@ async def cmd_generate(topic: str = None):
 
     poster = Poster(db)
 
-    result = await poster.post_now(topic=topic, dry_run=True)
+    ref_count = config.reference_tweet_count
+    ref_tweets = await db.get_all_tweets(limit=ref_count) if ref_count > 0 else None
+    result = await poster.post_now(topic=topic, dry_run=True,
+                                   reference_tweets=ref_tweets)
     if result:
         print(f"\n{'='*50}")
         print(f"预览推文 ({len(result.content)} 字符):")
@@ -443,9 +447,15 @@ async def cmd_easy():
         return
     logger.info(f"  人格: @{persona.username} — {persona.tone[:40]}...")
 
+    # 加载参考推文
+    ref_count = config.reference_tweet_count
+    ref_tweets = await db.get_all_tweets(limit=ref_count) if ref_count > 0 else None
+
     # Step 2: 发帖
     logger.info(f"[2/2] 发帖 | 今日已发: {await db.get_posts_today()}/{config.max_posts_per_day}")
-    result = await poster.post(persona=persona)
+    if ref_tweets:
+        logger.info(f"  参考推文: {len(ref_tweets)} 条")
+    result = await poster.post(persona=persona, reference_tweets=ref_tweets)
     if result and result.status == "success":
         logger.success(f"Easy 发帖成功 | ID: {result.tweet_id} | {time.time()-start:.1f}s")
     else:
@@ -453,54 +463,55 @@ async def cmd_easy():
 
 
 async def cmd_run(cron: str = None, now: bool = False, easy: bool = False):
-    """启动定时调度"""
+    """启动定时调度 (支持双任务: 发帖 + 定期蒸馏)"""
     db = Database()
     await db.initialize()
 
     scheduler = Scheduler()
-    cron_expr = cron or config.post_cron
+    post_cron = cron or config.post_cron
+    distill_cron = config.distill_cron
 
+    # ── 任务 1: 发帖 ──
     if easy:
-        async def easy_task():
+        async def post_task():
             await cmd_easy()
-        task_fn = easy_task
-        task_name = "easy (随机人格→发帖)"
+        post_name = "easy (随机人格→发帖)"
     else:
-        async def pipeline_task():
+        async def post_task():
             await cmd_pipeline()
-        task_fn = pipeline_task
-        task_name = "pipeline (爬取→蒸馏→发帖)"
+        post_name = "pipeline (爬取→蒸馏→发帖)"
 
-    scheduler.add_task(name="easy" if easy else "pipeline",
-                       cron_expr=cron_expr, callback=task_fn)
+    scheduler.add_task(name=post_name, cron_expr=post_cron, callback=post_task)
+
+    # ── 任务 2: 定期蒸馏 (复用 cmd_pipeline) ──
+    if distill_cron:
+        async def distill_task():
+            await cmd_pipeline()
+        scheduler.add_task(name="distill (定期蒸馏)", cron_expr=distill_cron,
+                          callback=distill_task)
 
     logger.info("=" * 50)
     logger.info("EasyTwit 定时调度已启动")
-    logger.info(f"模式: {task_name}")
-    logger.info(f"频率: {cron_expr}")
-    logger.info(f"每日上限: {config.max_posts_per_day} 条")
-
-    # 显示下次执行时间
-    from croniter import croniter
-    from datetime import datetime
-    nxt = croniter(cron_expr, datetime.now()).get_next(datetime)
-    logger.info(f"下次执行: {nxt.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"  发帖:   {post_name} @ {post_cron}")
+    if distill_cron:
+        logger.info(f"  蒸馏:   distill (定期蒸馏) @ {distill_cron}")
+    logger.info(f"  上限:   {config.max_posts_per_day} 条/天")
+    logger.info(f"  下次:   {scheduler.list_tasks()}")
     logger.info("按 Ctrl+C 停止")
     logger.info("=" * 50)
 
-    # 首次立即执行（默认开启，确认流程可用）
+    # 首次立即执行发帖
     if now or config.run_immediately:
-        logger.info(f">>> 启动测试：立即执行一次 {task_name}...")
+        logger.info(f">>> 启动测试: {post_name}...")
         try:
-            await task_fn()
-            logger.info(">>> 测试完成，进入定时调度模式")
+            await post_task()
+            logger.info(">>> 测试完成，进入定时调度")
         except Exception as e:
             msg = str(e)
-            if "403" in msg or "401" in msg or "FatalApiError" in type(e).__name__:
-                logger.error(f"🛑 启动测试遇到致命错误, 调度器不启动: {msg[:200]}")
+            if "403" in msg or "401" in msg:
+                logger.error(f"🛑 致命错误, 退出: {msg[:200]}")
                 return
-            else:
-                logger.warning(f"⚠️  启动测试失败, 继续进入调度: {msg[:150]}")
+            logger.warning(f"⚠️ 测试失败, 继续调度: {msg[:150]}")
 
     try:
         await scheduler.start()

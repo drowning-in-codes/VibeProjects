@@ -120,23 +120,39 @@ class ContentGenerator:
         logger.info(f"开始生成推文，基于 @{persona.username} 的人格特征")
 
         prompt = self._build_generation_prompt(persona, topic, reference_tweets)
-        
+        max_retries = config.get('anthropic.generation_retries', 3)
+
         try:
             from .fallback import try_with_fallback
 
             def call(client):
-                message = client.messages.create(
+                kwargs = dict(
                     model=config.anthropic_model,
                     max_tokens=500,
                     messages=[{"role": "user", "content": prompt}],
                 )
+                system = config.get('anthropic.system_prompt', '')
+                if system:
+                    kwargs["system"] = system
+                message = client.messages.create(**kwargs)
                 return self._extract_text(message).strip()
 
-            tweet_content = await try_with_fallback(
-                primary_fn=lambda: call(self.client),
-                backup_fn=lambda: call(self.backup_client) if self.backup_client else None,
-                label="Claude",
-            )
+            tweet_content = ""
+            for attempt in range(1, max_retries + 1):
+                tweet_content = await try_with_fallback(
+                    primary_fn=lambda: call(self.client),
+                    backup_fn=lambda: call(self.backup_client) if self.backup_client else None,
+                    label="Claude",
+                )
+                if tweet_content and len(tweet_content) >= 10:
+                    break
+                logger.warning(
+                    f"生成结果为空或过短 ({len(tweet_content)} 字符), "
+                    f"重试 {attempt}/{max_retries}..."
+                )
+
+            if not tweet_content or len(tweet_content) < 10:
+                raise ValueError(f"经过 {max_retries} 次重试仍无法生成有效推文")
 
             # 去掉可能的引号包裹
             if (tweet_content.startswith('"') and tweet_content.endswith('"')) or \

@@ -28,6 +28,7 @@ class Poster:
         topic: Optional[str] = None,
         with_image: Optional[bool] = None,
         dry_run: bool = False,
+        reference_tweets=None,
     ) -> Optional[PostHistory]:
         """生成并发布一条推文
 
@@ -58,6 +59,7 @@ class Poster:
                 persona=persona,
                 topic=topic,
                 with_image=with_image,
+                reference_tweets=reference_tweets,
             )
         except Exception as e:
             logger.error(f"推文生成失败: {e}")
@@ -115,6 +117,7 @@ class Poster:
         topic: Optional[str] = None,
         with_image: Optional[bool] = None,
         dry_run: bool = False,
+        reference_tweets=None,
     ) -> Optional[PostHistory]:
         """快速发布：自动获取人格并发布
 
@@ -136,6 +139,7 @@ class Poster:
             topic=topic,
             with_image=with_image,
             dry_run=dry_run,
+            reference_tweets=reference_tweets,
         )
 
     async def _post_thread(self, content: str, media_ids: list = None) -> dict:

@@ -2,6 +2,8 @@
 推文爬取模块
 使用 XDK 搜索和收集目标用户的推文
 """
+import json
+from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 from loguru import logger
@@ -50,6 +52,7 @@ class TweetScraper:
         unique = self._deduplicate(tweets)
         if unique:
             await self.db.save_tweets(unique)
+            self._save_tweets_json(username, unique)
             logger.info(f"爬取完成 @{username}: 收集 {len(unique)} 条推文")
         return unique
 
@@ -86,6 +89,7 @@ class TweetScraper:
         unique = self._deduplicate(all_tweets)
         if unique:
             await self.db.save_tweets(unique)
+            self._save_tweets_json("timeline", unique)
             logger.info(f"时间线爬取: {len(unique)} 条推文")
         return unique
 
@@ -175,6 +179,25 @@ class TweetScraper:
                 continue
 
         return tweets
+
+    def _save_tweets_json(self, username: str, tweets: List[Tweet]):
+        """将爬取的推文保存为 JSON 文件"""
+        out_dir = Path("./data/tweets")
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{username}_{timestamp}.json"
+        filepath = out_dir / filename
+
+        data = {
+            "scraped_at": datetime.now().isoformat(),
+            "username": username,
+            "count": len(tweets),
+            "tweets": [t.to_dict() for t in tweets],
+        }
+
+        filepath.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+        logger.info(f"  推文 JSON 已保存: {filepath}")
 
     def _deduplicate(self, tweets: List[Tweet]) -> List[Tweet]:
         """按 tweet_id 去重"""

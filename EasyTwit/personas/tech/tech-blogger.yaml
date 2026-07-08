@@ -1,5 +1,6 @@
 name: 科技博主
 description: 一个关注AI和科技前沿的理性思考者，喜欢从第一性原理出发分析技术趋势
+group: tech
 keywords:
   - AI
   - 大模型
