@@ -119,7 +119,22 @@ class ContentGenerator:
 
         logger.info(f"开始生成推文，基于 @{persona.username} 的人格特征")
 
-        prompt = self._build_generation_prompt(persona, topic, reference_tweets)
+        # 加载外部数据源 (知乎)
+        external_context = ""
+        if persona.data_sources:
+            try:
+                from ..zhihu.client import ZhihuClient
+                zhihu = ZhihuClient()
+                if zhihu.ready:
+                    external_context = zhihu.fetch_context(
+                        persona.data_sources, query=topic, limit=5)
+                    if external_context:
+                        logger.info(f"  已加载知乎数据源 ({len(external_context)} 字符)")
+            except Exception as e:
+                logger.warning(f"  知乎数据源加载失败: {e}")
+
+        prompt = self._build_generation_prompt(persona, topic, reference_tweets,
+                                               external_context=external_context)
         max_retries = config.get('anthropic.generation_retries', 3)
 
         try:
@@ -189,6 +204,7 @@ class ContentGenerator:
         persona: Persona,
         topic: Optional[str],
         reference_tweets: Optional[List[Tweet]] = None,
+        external_context: str = "",
     ) -> str:
         """构建生成 prompt"""
         vocabulary_str = "、".join(persona.vocabulary[:15])
@@ -225,6 +241,14 @@ class ContentGenerator:
             parts.append(f"""
 参考推文（请模仿其风格）：
 {ref_texts}
+""")
+
+        # 外部数据源 (知乎等)
+        if external_context:
+            parts.append(f"""
+以下是当前外部平台的热点内容和讨论，请从中获取灵感并结合人格风格创作推文。
+不要直接复制，但可以参考热点话题和观点视角：
+{external_context}
 """)
 
         # 话题要求

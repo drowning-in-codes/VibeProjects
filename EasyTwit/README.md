@@ -258,6 +258,38 @@ docker compose logs -f
 | `trends.get_by_woeid` | Free | Bearer Token |
 | `users.get_by_username` | Basic ($100/月) | 搜索/爬取需升级 |
 
+## 知乎数据源
+
+部分人格支持接入知乎平台数据作为生成上下文：
+
+```yaml
+# personas/social/hot-topic-debater.yaml
+data_sources:
+  - zhihu_hot                    # 知乎热榜
+  - "zhihu_search: 热点新闻"     # 知乎搜索
+  - "zhihu_global: 科技"         # 全网搜索
+  - "zhida: 最新AI趋势"          # 知乎直答 AI
+
+# 继承其他 persona 的数据源配置
+inherit_data_sources: hot-topic-debater
+```
+
+配置 `.env`:
+
+```bash
+ZHIHU_ACCESS_SECRET=...    # 知乎开放平台 Access Secret
+```
+
+知乎 API 文档:
+
+| 接口 | 文档 |
+|------|------|
+| 鉴权 | https://developer.zhihu.com/docs?key=authorization |
+| 热榜 | https://developer.zhihu.com/docs?key=hot_list |
+| 搜索 | https://developer.zhihu.com/docs?key=zhihu_search |
+| 全网搜索 | https://developer.zhihu.com/docs?key=global_search |
+| 直答 AI | https://developer.zhihu.com/docs?key=zhida |
+
 ## 测试
 
 ```bash
@@ -271,3 +303,4 @@ python tests/test_scrape.py
 - XDK 模块参考: https://docs.x.com/xdks/python/reference/modules
 - XDK 认证: https://docs.x.com/xdks/python/authentication
 - X Developer Portal: https://developer.x.com
+- 知乎开放平台: https://developer.zhihu.com

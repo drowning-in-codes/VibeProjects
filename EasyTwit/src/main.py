@@ -481,7 +481,8 @@ async def cmd_run(cron: str = None, now: bool = False, easy: bool = False):
             await cmd_pipeline()
         post_name = "pipeline (爬取→蒸馏→发帖)"
 
-    scheduler.add_task(name=post_name, cron_expr=post_cron, callback=post_task)
+    scheduler.add_task(name=post_name, cron_expr=post_cron, callback=post_task,
+                       jitter_minutes=config.jitter_minutes)
 
     # ── 任务 2: 定期蒸馏 (复用 cmd_pipeline) ──
     if distill_cron:

@@ -51,6 +51,7 @@ class Persona:
     vocabulary: list = None  # 高频词汇
     topics: list = None  # 话题偏好
     style_metrics: Dict[str, Any] = None  # 风格指标
+    data_sources: list = None  # 外部数据源 (e.g. ["zhihu_hot", "zhihu_search: AI"])
     updated_at: Optional[datetime] = None
     source: str = "distilled"  # distilled / custom
 
@@ -61,6 +62,8 @@ class Persona:
             self.topics = []
         if self.style_metrics is None:
             self.style_metrics = {}
+        if self.data_sources is None:
+            self.data_sources = []
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""

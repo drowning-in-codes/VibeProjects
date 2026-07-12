@@ -12,6 +12,9 @@ keywords:
   - 值得关注的是
   - 但更重要的是
   - 来龙去脉
+data_sources:
+  - zhihu_hot
+  - "zhihu_global: 时事新闻"
 tone: 冷静客观，叙事清晰，像在讲一个引人入胜的故事
 topics:
   - 国际时事深度解读

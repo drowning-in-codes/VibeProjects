@@ -87,6 +87,11 @@ class Config:
         return os.getenv('X_REDIRECT_URI', 'http://localhost:8080/callback')
 
     @property
+    def zhihu_access_secret(self) -> Optional[str]:
+        """知乎开放平台 Access Secret (Bearer Token)"""
+        return os.getenv('ZHIHU_ACCESS_SECRET', None)
+
+    @property
     def x_timeout(self) -> int:
         """X API 请求超时（秒）"""
         return self.get('x.timeout', 30)
@@ -194,6 +199,13 @@ class Config:
         return self.get('targets.persona_group', 'random')
 
     @property
+    def group_weights(self) -> dict:
+        """随机选组权重配置"""
+        return self.get('targets.group_weights', {
+            'tech': 40, 'career': 25, 'social': 20, 'finance': 15
+        })
+
+    @property
     def reference_tweet_count(self) -> int:
         """生成时带入的参考推文数"""
         return self.get('targets.reference_tweet_count', 2)
@@ -219,6 +231,11 @@ class Config:
     def run_immediately(self) -> bool:
         """启动后立即执行一次"""
         return self.get('scheduler.run_immediately', True)
+
+    @property
+    def jitter_minutes(self) -> int:
+        """定时任务时间扰动 (分钟)"""
+        return self.get('scheduler.jitter_minutes', 30)
 
     # ── Database ──────────────────────────────────────────
 

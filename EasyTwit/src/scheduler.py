@@ -1,8 +1,9 @@
 """
 定时调度模块
-使用 cron 表达式定时执行任务
+使用 cron 表达式定时执行任务 (支持时间扰动)
 """
 import asyncio
+import random
 from datetime import datetime, timedelta
 from typing import Callable, Awaitable
 from croniter import croniter
@@ -17,13 +18,16 @@ class Scheduler:
         self._tasks: list[dict] = []
 
     def add_task(self, name: str, cron_expr: str,
-                 callback: Callable[[], Awaitable[None]]):
+                 callback: Callable[[], Awaitable[None]],
+                 jitter_minutes: int = 0):
         self._tasks.append({
             'name': name,
             'cron': cron_expr,
             'callback': callback,
+            'jitter_minutes': jitter_minutes,
         })
-        logger.info(f"调度任务已注册: '{name}' (cron: {cron_expr})")
+        jitter_info = f" (扰动 ±{jitter_minutes}min)" if jitter_minutes else ""
+        logger.info(f"调度任务已注册: '{name}' (cron: {cron_expr}{jitter_info})")
 
     def _next_run(self, cron_expr: str) -> datetime:
         """计算下次触发时间"""
@@ -58,7 +62,19 @@ class Scheduler:
                 await asyncio.sleep(max(sleep_ms, 1))
                 continue
 
-            # 触发!
+            # 触发! 先加时间扰动
+            jitter = next_task.get('jitter_minutes', 0)
+            if jitter > 0:
+                offset = random.randint(-jitter * 60, jitter * 60)
+                if offset > 0:
+                    logger.info(
+                        f"⏳ 时间扰动: 延迟 {offset // 60} 分 {offset % 60} 秒..."
+                    )
+                    await asyncio.sleep(offset)
+                elif offset < 0:
+                    # 负偏移不需要 sleep, 已经到期了
+                    pass
+
             now = datetime.now()
             logger.info("=" * 50)
             logger.info(f"⏰ 触发: '{next_task['name']}' @ {now.strftime('%H:%M:%S')}")

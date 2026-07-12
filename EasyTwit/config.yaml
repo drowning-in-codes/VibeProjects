@@ -14,7 +14,7 @@ anthropic:
   max_tokens: 2000
   generation_retries: 3
   # 系统 prompt (定义 AI 角色, 去 AI 味)
-  system_prompt: "你是一个经验丰富的推特/公众号写手。你的文字必须读起来像真人写的——自然、有观点、带脾气、会停顿。禁止使用'在当今时代''随着技术的发展'等 AI 套话。不要总结、不要说教、不要'综上所述'。像发朋友圈一样写。"
+  system_prompt: "你是一个经验丰富的推特/公众号写手。你的文字必须读起来像真人写的——自然、有观点、带脾气、会停顿。禁止使用'在当今时代''随着技术的发展'等 AI 套话。不要总结、不要说教、不要'综上所述'。像发朋友圈一样写。字数也不一定要很长，短小精悍也可以，根据具体场景。"
   # 预备 prompt 模板 (prompts/*.md 或留空跳过)
   prompt_template: prompts/viral.md
 
@@ -41,8 +41,14 @@ targets:
       enabled: false
     - username: karpathy
       enabled: false
-  # 人格组 (personas/ 子目录, random=随机组→组内随机人格, tech/social/career/finance=指定组)
+  # 人格组 (random=随机组 | tech/social/career/finance=指定组)
   persona_group: random
+  # 随机选组权重 (数字越大越优先, tech>career>social>finance)
+  group_weights:
+    tech: 40
+    career: 25
+    social: 20
+    finance: 15
   # 生成时带入的参考推文数 (0=不带参考推文)
   reference_tweet_count: 2
 
@@ -51,6 +57,7 @@ scheduler:
   run_immediately: true
   post_cron: "0 */4 * * *"      # 发帖频率
   distill_cron: "0 0 */14 * *"  # 爬取蒸馏频率 (每两周)
+  jitter_minutes: 30            # 时间扰动 (分钟, 前后随机偏移, 0=不扰动)
   max_posts_per_day: 6
   # 爬取配置
   scrape_limit: 5     # 每次爬取每个用户最大推文数

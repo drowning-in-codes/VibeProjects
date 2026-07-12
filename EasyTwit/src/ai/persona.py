@@ -109,7 +109,8 @@ class PersonaManager:
 
     async def create_custom_persona(self, name: str, description: str,
                                     keywords: List[str], tone: str = "",
-                                    topics: Optional[List[str]] = None) -> Persona:
+                                    topics: Optional[List[str]] = None,
+                                    data_sources: Optional[List[str]] = None) -> Persona:
         """根据描述和关键词创建自定义人格
 
         Args:
@@ -164,6 +165,7 @@ class PersonaManager:
             vocabulary=persona_data.get('vocabulary', keywords[:15]),
             topics=persona_data.get('topics', topics or []),
             style_metrics=persona_data.get('style_metrics', {}),
+            data_sources=data_sources or [],
             updated_at=datetime.now(),
             source='custom',
         )
@@ -210,9 +212,12 @@ class PersonaManager:
             logger.error("personas/ 无子目录 (组)")
             return None
 
-        # 选组
+        # 选组 (支持权重)
         if group == "random":
-            chosen = _random.choice(groups)
+            weights = config.group_weights
+            group_names = [g.name for g in groups]
+            w = [weights.get(n, 10) for n in group_names]
+            chosen = _random.choices(groups, weights=w, k=1)[0]
         else:
             chosen = root / group
             if not chosen.exists():
@@ -229,13 +234,35 @@ class PersonaManager:
         cfg = yaml.safe_load(path.read_text(encoding='utf-8'))
         name = cfg.get('name', path.stem)
 
+        data_sources = cfg.get('data_sources', [])
+
+        # 继承数据源: inherit_data_sources 指向另一个 yaml 文件
+        inherit = cfg.get('inherit_data_sources', '')
+        if inherit and not data_sources:
+            inherit_path = Path(f"personas/{inherit}.yaml")
+            if not inherit_path.exists():
+                # 尝试在各组目录下查找
+                found = list(root.rglob(f"{inherit}.yaml"))
+                if found:
+                    inherit_path = found[0]
+            if inherit_path.exists():
+                inherit_cfg = yaml.safe_load(inherit_path.read_text(encoding='utf-8'))
+                data_sources = inherit_cfg.get('data_sources', [])
+                logger.info(f"  数据源继承自: {inherit_path}")
+            else:
+                logger.warning(f"  继承数据源未找到: {inherit}")
+
         logger.info(f"人格组: {chosen.name} → {name} ({path})")
+        if data_sources:
+            logger.info(f"  数据源: {data_sources}")
+
         return await self.create_custom_persona(
             name=name,
             description=cfg.get('description', ''),
             keywords=cfg.get('keywords', []),
             tone=cfg.get('tone', ''),
             topics=cfg.get('topics'),
+            data_sources=data_sources,
         )
 
     async def create_persona_from_config(self) -> Optional[Persona]:

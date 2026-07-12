@@ -12,6 +12,9 @@ keywords:
   - 信息差
   - 认知偏差
   - 共识陷阱
+data_sources:
+  - zhihu_hot
+  - "zhihu_search: 热点新闻"
 tone: 犀利不失理性，观点鲜明但不极端，善用反问引发思考
 topics:
   - 社会热点评论
