@@ -58,7 +58,7 @@ scheduler:
   post_cron: "0 */4 * * *"      # 发帖频率
   distill_cron: "0 0 */14 * *"  # 爬取蒸馏频率 (每两周)
   jitter_minutes: 30            # 时间扰动 (分钟, 前后随机偏移, 0=不扰动)
-  max_posts_per_day: 6
+  max_posts_per_day: [3, 6]  # 每天在此范围内随机取值
   # 爬取配置
   scrape_limit: 5     # 每次爬取每个用户最大推文数
   following_limit: 5  # 关注列表爬取最大用户数

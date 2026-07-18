@@ -224,8 +224,19 @@ class Config:
 
     @property
     def max_posts_per_day(self) -> int:
-        """每日最大发帖数"""
-        return self.get('scheduler.max_posts_per_day', 6)
+        """每日最大发帖数 (支持范围 [min, max] 或固定值)"""
+        import random
+        from datetime import date
+        val = self.get('scheduler.max_posts_per_day', 6)
+        if isinstance(val, list) and len(val) == 2:
+            # 按天缓存, 同一天返回同一个随机值
+            today = date.today().isoformat()
+            if not hasattr(self, '_daily_limit_cache'):
+                self._daily_limit_cache = {}
+            if today not in self._daily_limit_cache:
+                self._daily_limit_cache = {today: random.randint(val[0], val[1])}
+            return self._daily_limit_cache[today]
+        return int(val) if val else 6
 
     @property
     def run_immediately(self) -> bool:
