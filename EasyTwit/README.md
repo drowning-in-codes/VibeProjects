@@ -68,6 +68,8 @@ pip install -r requirements.txt
 | `python -m src post -t topic` | 发布推文 (过长自动 thread) |
 | `python -m src pipeline` | 完整流程: 爬取→蒸馏→发帖 |
 | `python -m src trends -w worldwide` | 全球趋势 |
+| `python -m src analytics -d 30` | 数据看板 (曝光/点赞/互动率) |
+| `python -m src engage` | 互动增长 (like Blue 用户帖子) |
 | `python -m src run --now` | 定时调度 (启动即执行完整 pipeline) |
 | `python -m src run --easy --now` | 轻量调度 (跳过爬取, 直接随机人格→发帖) |
 | `python -m src status` | 查看状态 |
@@ -132,9 +134,14 @@ anthropic:
 scheduler:
   run_immediately: true         # 启动时立即执行一次
   post_cron: "0 */4 * * *"     # 定时频率
-  max_posts_per_day: 6
-  scrape_limit: 50              # 每次爬取上限
-  following_limit: 50           # 关注列表上限
+  distill_cron: "0 0 */14 * *" # 蒸馏频率 (每两周)
+  jitter_minutes: 30           # 时间扰动 ±30min
+  max_posts_per_day: [3, 6]    # 每天随机 3~6 条
+  scrape_limit: 5
+  following_limit: 5
+  api_budget_per_day: 20       # API 日限额
+  metrics_fetch_limit: 10
+  engage_limit: 5              # 每日互动次数
 
 nanobanana:
   model: nano-banana            # 图片生成模型
@@ -220,6 +227,33 @@ GPT-Image-2 (Chat Completions)
 纯文本发布 (不阻断)
 ```
 
+## 数据追踪 & 增长
+
+### 数据看板 (P0)
+
+```bash
+python -m src analytics        # 最近 30 天数据
+python -m src analytics -d 7   # 最近 7 天
+```
+
+追踪指标: 曝光量、点赞、转推、回复、互动率。自动拉取已发推文数据并汇总展示 500 万曝光进度。
+
+### 互动增长 (P1)
+
+```bash
+python -m src engage           # 搜索 Blue 用户 → like 互动
+```
+
+搜索 "blue 互关" 等关键词，自动点赞相关推文，增加曝光和互关几率。
+
+配置:
+```yaml
+scheduler:
+  api_budget_per_day: 20      # API 日限额
+  metrics_fetch_limit: 10     # 每次拉取数据条数
+  engage_limit: 5             # 每日互动次数
+```
+
 ## 调度器
 
 ```bash
@@ -227,15 +261,6 @@ python -m src run                 # 完整 pipeline: 爬取→蒸馏→发帖
 python -m src run --easy          # 轻量模式: 随机人格→发帖 (不爬取不蒸馏)
 python -m src run --easy --now    # 立即测试轻量模式
 python -m src run --cron "*/30 * * * *"  # 自定义频率
-```
-
-配置:
-
-```yaml
-scheduler:
-  run_immediately: true        # 启动立即执行, 测试可用性
-  post_cron: "0 */4 * * *"    # 定时频率
-  max_posts_per_day: 6         # 每日上限
 ```
 
 ## Docker 部署

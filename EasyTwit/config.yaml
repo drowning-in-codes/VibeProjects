@@ -58,10 +58,14 @@ scheduler:
   post_cron: "0 */4 * * *"      # 发帖频率
   distill_cron: "0 0 */14 * *"  # 爬取蒸馏频率 (每两周)
   jitter_minutes: 30            # 时间扰动 (分钟, 前后随机偏移, 0=不扰动)
-  max_posts_per_day: [3, 6]  # 每天在此范围内随机取值
+  max_posts_per_day: [1, 3]  # 每天在此范围内随机取值
   # 爬取配置
   scrape_limit: 5     # 每次爬取每个用户最大推文数
   following_limit: 5  # 关注列表爬取最大用户数
+  # API 额度控制
+  api_budget_per_day: 20       # 每日最大 API 调用次数
+  metrics_fetch_limit: 10      # 每次拉取数据最多检查几条推文
+  engage_limit: 5              # 每日互动上限 (like+repost 次数)
 
 # ── Database ──────────────────────────────────────────────
 database:

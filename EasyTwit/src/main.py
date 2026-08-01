@@ -110,6 +110,91 @@ async def cmd_trends(woeid: str = "1", count: int = 20, personalized: bool = Fal
     print()
 
 
+async def cmd_analytics(days: int = 30):
+    """数据看板"""
+    db = Database()
+    await db.initialize()
+    x = XClient()
+
+    # 1. 更新指标
+    logger.info("正在拉取最新数据...")
+    posts = await db.get_posts_without_metrics(limit=config.metrics_fetch_limit)
+    updated = 0
+    for post in posts[:config.metrics_fetch_limit]:
+        if not post.tweet_id:
+            continue
+        metrics = x.get_tweet_metrics(post.tweet_id)
+        if metrics:
+            await db.update_post_metrics(post.tweet_id, metrics)
+            updated += 1
+        await asyncio.sleep(1)  # 速率限制
+    logger.info(f"  更新了 {updated}/{len(posts)} 条推文的数据")
+
+    # 2. 汇总展示
+    summary = await db.get_analytics_summary(days=days)
+    print(f"\n{'='*50}")
+    print(f"📊 EasyTwit 数据看板 (最近 {days} 天)")
+    print(f"{'='*50}")
+    print(f"  发帖数:       {summary.get('total_posts', 0)}")
+    print(f"  总曝光:       {summary.get('total_impressions', 0):,}")
+    print(f"  总点赞:       {summary.get('total_likes', 0)}")
+    print(f"  总转推:       {summary.get('total_retweets', 0)}")
+    print(f"  总回复:       {summary.get('total_replies', 0)}")
+    posts_count = summary.get('total_posts', 1) or 1
+    print(f"  均曝光/帖:    {summary.get('total_impressions', 0) / posts_count:,.0f}")
+    print(f"  互动率:       {(summary.get('total_likes', 0) + summary.get('total_retweets', 0)) / max(posts_count, 1):.1%}")
+
+    # 3. 进度
+    impressions = summary.get('total_impressions', 0)
+    target = 5_000_000
+    pct = min(100, impressions / target * 100)
+    bar = "█" * int(pct / 5) + "░" * (20 - int(pct / 5))
+    print(f"\n🎯 500万曝光目标 ({days}/90 天)")
+    print(f"   [{bar}] {pct:.1f}% ({impressions:,}/{target:,})")
+    print(f"   日均曝光: {impressions / max(days, 1):,.0f} (需要 {target / 90:,.0f})")
+    print()
+
+
+async def cmd_engage():
+    """互动增长: 发现 Blue 用户 → like + repost"""
+    db = Database()
+    await db.initialize()
+    x = XClient()
+    if not x.ready:
+        logger.error("X 客户端未就绪")
+        return
+
+    limit = config.get('scheduler.engage_limit', 5)
+    logger.info(f"开始互动增长 (上限: {limit})")
+
+    # 搜索 Blue/ 互关相关推文
+    queries = ["blue 互关", "X Premium 互关", "蓝标 互关"]
+    interacted = 0
+
+    for q in queries:
+        if interacted >= limit:
+            break
+        posts = x.find_blue_users(q, count=min(5, limit - interacted))
+        for post in posts[:min(3, limit - interacted)]:
+            tid = post.get('id', '')
+            if not tid:
+                continue
+            result = x.interact_with_tweet(tid, like=True, repost=False)
+            if result.get('liked') or result.get('reposted'):
+                interacted += 1
+                logger.info(f"  互动: {tid[:15]}... (query: {q})")
+            await asyncio.sleep(2)  # 速率限制
+
+    # 保存
+    post = PostHistory(
+        content=f"[ENGAGE] 互动了 {interacted} 条推文",
+        posted_at=datetime.now(),
+        status="success" if interacted > 0 else "pending",
+    )
+    await db.save_post(post)
+    logger.success(f"互动完成: {interacted} 次")
+
+
 async def cmd_setup():
     """初始化项目"""
     logger.info("EasyTwit 初始化...")
@@ -633,6 +718,13 @@ def main():
     tr_parser.add_argument("--personalized", "-p", action="store_true",
                            help="个性趋势（基于认证用户）")
 
+    # engage
+    subparsers.add_parser("engage", help="互动增长 (like Blue 用户帖子)")
+
+    # analytics
+    an_parser = subparsers.add_parser("analytics", help="数据看板")
+    an_parser.add_argument("--days", "-d", type=int, default=30, help="统计天数")
+
     # status
     subparsers.add_parser("status", help="查看应用状态")
 
@@ -671,6 +763,9 @@ def main():
             cron=getattr(args, 'cron', None),
             now=getattr(args, 'now', False),
             easy=getattr(args, 'easy', False)),
+        "engage": cmd_engage,
+        "analytics": lambda: cmd_analytics(
+            days=getattr(args, 'days', 30)),
         "status": cmd_status,
     }
 

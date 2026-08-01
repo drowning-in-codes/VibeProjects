@@ -248,6 +248,16 @@ class Config:
         """定时任务时间扰动 (分钟)"""
         return self.get('scheduler.jitter_minutes', 30)
 
+    @property
+    def api_budget_per_day(self) -> int:
+        """每日 API 调用上限"""
+        return self.get('scheduler.api_budget_per_day', 50)
+
+    @property
+    def metrics_fetch_limit(self) -> int:
+        """每次拉取数据检查数"""
+        return self.get('scheduler.metrics_fetch_limit', 10)
+
     # ── Database ──────────────────────────────────────────
 
     @property

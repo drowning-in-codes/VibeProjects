@@ -8,7 +8,7 @@ from loguru import logger
 from xdk import Client as XdkClient
 from xdk.oauth1_auth import OAuth1
 from xdk.posts.models import (
-    CreateRequest, CreateRequestMedia, CreateRequestReply,
+    CreateRequest, CreateRequestReply,
 )
 from xdk.media.models import (
     InitializeUploadRequest, AppendUploadRequest,
@@ -110,7 +110,7 @@ class XClient:
         if len(text) > 280:
             text = text[:277] + "..."
 
-        media = CreateRequestMedia(media_ids=media_ids) if media_ids else None
+        media = {"media_ids": media_ids} if media_ids else None
         body = CreateRequest(text=text, media=media)
 
         logger.info(f"发布推文: {text[:60]}...")
@@ -355,6 +355,37 @@ class XClient:
             logger.error(f"获取趋势失败: {e}")
             return []
 
+    # ═══════════════════════════════════════════════════════════════
+    # 数据追踪
+    # ═══════════════════════════════════════════════════════════════
+
+    def get_tweet_metrics(self, tweet_id: str) -> Optional[Dict[str, Any]]:
+        """获取单条推文的互动数据"""
+        self._require()
+        try:
+            result = self._client.posts.get_by_id(
+                tweet_id,
+                tweet_fields=["public_metrics", "created_at"],
+            )
+            data = _unwrap(result) or {}
+            metrics = data.get('public_metrics', {})
+            return {
+                'impressions': metrics.get('impression_count', 0),
+                'likes': metrics.get('like_count', 0),
+                'retweets': metrics.get('retweet_count', 0),
+                'replies_count': metrics.get('reply_count', 0),
+            }
+        except Exception as e:
+            msg = str(e)
+            if "429" in msg:
+                logger.warning(f"获取推文数据被限流 (429): {tweet_id}")
+            elif "403" in msg or "401" in msg:
+                _check_fatal(e, f"获取推文数据 {tweet_id}")
+                raise
+            else:
+                logger.error(f"获取推文数据失败: {e}")
+            return None
+
     def personalized_trends(self) -> List[Dict[str, Any]]:
         """获取个性化趋势（需要 OAuth 1.0a User Context）"""
         self._require()
@@ -367,6 +398,45 @@ class XClient:
         except Exception as e:
             logger.error(f"获取个性化趋势失败: {e}")
             return []
+
+
+    # ═══════════════════════════════════════════════════════════════
+    # 互动增长
+    # ═══════════════════════════════════════════════════════════════
+
+    def find_blue_users(self, query: str = "blue", count: int = 10) -> List[Dict[str, Any]]:
+        """搜索 Blue/Verified 用户的推文 (用于互动增长)"""
+        self._require()
+        try:
+            result = self._client.posts.search_recent(
+                query=query, max_results=count,
+                tweet_fields=["public_metrics", "author_id"],
+                user_fields=["username", "verified_type"],
+                expansions=["author_id"],
+            )
+            data = _unwrap(result)
+            posts = data.get('data', data) if isinstance(data, dict) else data
+            return posts if isinstance(posts, list) else []
+        except Exception as e:
+            msg = str(e)
+            if "429" in msg:
+                logger.warning(f"搜索 Blue 用户被限流")
+            elif "402" in msg:
+                logger.debug(f"搜索需要付费层级")
+            else:
+                logger.warning(f"搜索 Blue 用户失败: {e}")
+            return []
+
+    def interact_with_tweet(self, tweet_id: str, like: bool = True,
+                            repost: bool = True) -> dict:
+        """对推文进行互动 (like/repost)"""
+        result = {"liked": False, "reposted": False}
+        self._require()
+        if like:
+            result["liked"] = self.like(tweet_id)
+        if repost:
+            result["reposted"] = self.repost(tweet_id)
+        return result
 
 
 def _guess_media_type(suffix: str) -> str:

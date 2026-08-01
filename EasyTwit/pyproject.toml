@@ -1,0 +1,18 @@
+[project]
+name = "easytwit"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "aiosqlite>=0.20.0",
+    "anthropic>=0.39.0",
+    "croniter>=2.0.0",
+    "httpx>=0.27.0",
+    "loguru>=0.7.0",
+    "openai>=1.0.0",
+    "pillow>=10.0.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+    "requests>=2.31.0",
+    "xdk>=0.1.0",
+]

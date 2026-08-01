@@ -56,7 +56,12 @@ class Database:
                     posted_at TEXT,
                     tweet_id TEXT,
                     status TEXT DEFAULT 'pending',
-                    error_message TEXT
+                    error_message TEXT,
+                    impressions INTEGER DEFAULT 0,
+                    likes INTEGER DEFAULT 0,
+                    retweets INTEGER DEFAULT 0,
+                    replies_count INTEGER DEFAULT 0,
+                    last_metrics_update TEXT
                 )
             """)
 
@@ -73,6 +78,16 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_post_history_posted_at
                 ON post_history(posted_at)
             """)
+
+            # 迁移：添加指标列 (v2)
+            try:
+                await db.execute("ALTER TABLE post_history ADD COLUMN impressions INTEGER DEFAULT 0")
+                await db.execute("ALTER TABLE post_history ADD COLUMN likes INTEGER DEFAULT 0")
+                await db.execute("ALTER TABLE post_history ADD COLUMN retweets INTEGER DEFAULT 0")
+                await db.execute("ALTER TABLE post_history ADD COLUMN replies_count INTEGER DEFAULT 0")
+                await db.execute("ALTER TABLE post_history ADD COLUMN last_metrics_update TEXT")
+            except Exception:
+                pass  # 列已存在
 
             await db.commit()
             logger.info(f"数据库初始化完成: {self.db_path}")
@@ -245,3 +260,53 @@ class Database:
             """, (limit,))
             rows = await cursor.fetchall()
             return [PostHistory.from_dict(dict(row)) for row in rows]
+
+    async def update_post_metrics(self, tweet_id: str, metrics: dict):
+        """更新单条推文的数据指标"""
+        import datetime as _dt
+        async with aiosqlite.connect(str(self.db_path)) as db:
+            await db.execute("""
+                UPDATE post_history SET
+                    impressions = ?, likes = ?, retweets = ?,
+                    replies_count = ?, last_metrics_update = ?
+                WHERE tweet_id = ?
+            """, (
+                metrics.get('impressions', 0),
+                metrics.get('likes', 0),
+                metrics.get('retweets', 0),
+                metrics.get('replies_count', 0),
+                _dt.datetime.now().isoformat(),
+                tweet_id,
+            ))
+            await db.commit()
+
+    async def get_posts_without_metrics(self, limit: int = 10) -> List[PostHistory]:
+        """获取未拉取数据的发布记录"""
+        async with aiosqlite.connect(str(self.db_path)) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("""
+                SELECT * FROM post_history
+                WHERE status = 'success' AND last_metrics_update IS NULL
+                ORDER BY posted_at DESC
+                LIMIT ?
+            """, (limit,))
+            rows = await cursor.fetchall()
+            return [PostHistory.from_dict(dict(row)) for row in rows]
+
+    async def get_analytics_summary(self, days: int = 30) -> dict:
+        """汇总数据"""
+        async with aiosqlite.connect(str(self.db_path)) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute("""
+                SELECT
+                    COUNT(*) as total_posts,
+                    COALESCE(SUM(impressions), 0) as total_impressions,
+                    COALESCE(SUM(likes), 0) as total_likes,
+                    COALESCE(SUM(retweets), 0) as total_retweets,
+                    COALESCE(SUM(replies_count), 0) as total_replies
+                FROM post_history
+                WHERE status = 'success'
+                AND posted_at >= date('now', ?)
+            """, (f'-{days} days',))
+            row = await cursor.fetchone()
+            return dict(zip([r[0] for r in cursor.description], row)) if row else {}
