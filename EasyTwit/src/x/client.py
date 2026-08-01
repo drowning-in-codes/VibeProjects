@@ -7,9 +7,10 @@ from pathlib import Path
 from loguru import logger
 from xdk import Client as XdkClient
 from xdk.oauth1_auth import OAuth1
-from xdk.posts.models import (
-    CreateRequest, CreateRequestReply,
-)
+try:
+    from xdk.posts.models import CreateRequest,CreateResponse
+except ImportError:
+    CreateRequest = None
 from xdk.media.models import (
     InitializeUploadRequest, AppendUploadRequest,
 )
@@ -128,7 +129,7 @@ class XClient:
         self._require()
         body = CreateRequest(
             text=text,
-            reply=CreateRequestReply(in_reply_to_tweet_id=tweet_id),
+            reply={"in_reply_to_tweet_id": tweet_id},
         )
         result = self._client.posts.create(body=body)
         return {"tweet_id": (_unwrap(result) or {}).get('id', '')}
