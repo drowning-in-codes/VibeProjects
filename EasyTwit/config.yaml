@@ -46,9 +46,9 @@ targets:
   # 随机选组权重 (数字越大越优先, tech>career>social>finance)
   group_weights:
     tech: 40
-    career: 25
-    social: 20
-    finance: 15
+    career: 30
+    social: 35
+    finance: 30
   # 生成时带入的参考推文数 (0=不带参考推文)
   reference_tweet_count: 2
 
