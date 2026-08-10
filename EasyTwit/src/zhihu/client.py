@@ -125,7 +125,9 @@ class ZhihuClient:
 
     def fetch_context(self, data_sources: List[str], query: str = None,
                       limit: int = 5) -> str:
-        """根据 data_sources 拉取数据，返回格式化的上下文字符串"""
+        """根据 data_sources 拉取数据，返回格式化的上下文字符串。
+        单个数据源失败或无结果不影响其他数据源，全部失败则返回空字符串由调用方兜底。
+        """
         parts = []
 
         for ds in data_sources:
@@ -138,14 +140,15 @@ class ZhihuClient:
                 if ds == "zhihu_hot":
                     items = self.hot_list(limit=limit)
                     if items:
-                        titles = []
-                        for it in items:
-                            t = it.get("Title", "")
-                            if t:
-                                titles.append(t)
+                        titles = [it.get("Title", "") for it in items if it.get("Title")]
                         if titles:
                             parts.append("## 知乎热榜\n" + "\n".join(
                                 f"- {t}" for t in titles[:limit]))
+                            logger.debug(f"  zhihu_hot: {len(titles)} 条")
+                        else:
+                            logger.debug("  zhihu_hot: 无有效标题")
+                    else:
+                        logger.debug("  zhihu_hot: 无数据")
 
                 elif ds.startswith("zhihu_search:"):
                     q = ds.split(":", 1)[1] or query or "科技"
@@ -159,6 +162,11 @@ class ZhihuClient:
                                 contents.append(f"- **{title}**\n  {excerpt}")
                         if contents:
                             parts.append(f"## 知乎搜索: {q}\n" + "\n".join(contents[:limit]))
+                            logger.debug(f"  zhihu_search({q}): {len(contents)} 条")
+                        else:
+                            logger.debug(f"  zhihu_search({q}): 无有效内容")
+                    else:
+                        logger.debug(f"  zhihu_search({q}): 无数据")
 
                 elif ds.startswith("zhihu_global:"):
                     q = ds.split(":", 1)[1] or query or "科技"
@@ -172,14 +180,23 @@ class ZhihuClient:
                                 contents.append(f"- **{title}**\n  {text}")
                         if contents:
                             parts.append(f"## 全网搜索: {q}\n" + "\n".join(contents[:limit]))
+                            logger.debug(f"  zhihu_global({q}): {len(contents)} 条")
+                        else:
+                            logger.debug(f"  zhihu_global({q}): 无有效内容")
+                    else:
+                        logger.debug(f"  zhihu_global({q}): 无数据")
+
                 elif ds.startswith("zhida:"):
                     q = ds.split(":", 1)[1] or query or "最新热点"
                     model = "zhida-fast-1p5"
                     answer = self.zhida_ask(q, model=model)
                     if answer:
                         parts.append(f"## 知乎直答: {q}\n{answer[:500]}")
+                        logger.debug(f"  zhida({q}): {len(answer)} 字符")
+                    else:
+                        logger.debug(f"  zhida({q}): 无回答")
 
             except Exception as e:
-                logger.warning(f"知乎数据源 {ds} 失败: {e}")
+                logger.warning(f"  zhihu {ds} 异常: {e}")
 
         return "\n\n".join(parts) if parts else ""

@@ -119,7 +119,7 @@ class ContentGenerator:
 
         logger.info(f"开始生成推文，基于 @{persona.username} 的人格特征")
 
-        # 加载外部数据源 (知乎)
+        # 加载外部数据源 (知乎), 失败或无结果则兜底使用人格信息
         external_context = ""
         if persona.data_sources:
             try:
@@ -129,9 +129,13 @@ class ContentGenerator:
                     external_context = zhihu.fetch_context(
                         persona.data_sources, query=topic, limit=5)
                     if external_context:
-                        logger.info(f"  已加载知乎数据源 ({len(external_context)} 字符)")
+                        logger.info(f"  ✓ 知乎数据源已加载 ({len(external_context)} 字符)")
+                    else:
+                        logger.info("  → 知乎未返回有效数据，使用人格信息兜底")
+                else:
+                    logger.info("  → 知乎未配置 Access Secret，使用人格信息兜底")
             except Exception as e:
-                logger.warning(f"  知乎数据源加载失败: {e}")
+                logger.warning(f"  → 知乎数据源异常 ({e})，使用人格信息兜底")
 
         prompt = self._build_generation_prompt(persona, topic, reference_tweets,
                                                external_context=external_context)
