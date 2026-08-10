@@ -92,15 +92,34 @@ EasyTwit/
 │   │   ├── generator.py      # 推文生成 + Prompt 模板
 │   │   ├── image.py          # nanobanana + GPT-Image-2
 │   │   └── fallback.py       # API 主备切换
+│   ├── zhihu/                # 知乎数据源
+│   │   └── client.py         # 热榜/搜索/直答 AI
 │   └── storage/              # 持久化
 │       ├── models.py         # Tweet / Persona / PostHistory
 │       └── database.py       # SQLite
-├── personas/                 # 人格模板 + 蒸馏自动保存
-│   ├── tech-blogger.yaml
-│   ├── life-observer.yaml
-│   ├── career-survivor.yaml
-│   ├── gen-z-trendy.yaml
-│   ├── casual-observer.yaml
+├── personas/                 # 人格模板 (按组分类)
+│   ├── tech/                 # 科技组
+│   │   ├── tech-blogger.yaml
+│   │   ├── tech-discussant.yaml
+│   │   ├── dev-insider.yaml
+│   │   └── hot-tech-tracker.yaml     🔗 知乎
+│   ├── social/               # 社交组
+│   │   ├── casual-observer.yaml
+│   │   ├── gen-z-trendy.yaml
+│   │   ├── life-observer.yaml
+│   │   ├── hot-topic-debater.yaml    🔗 知乎
+│   │   ├── meme-writer.yaml
+│   │   ├── story-writer.yaml
+│   │   ├── anecdote-teller.yaml
+│   │   ├── daily-life.yaml
+│   │   └── blue-promoter.yaml
+│   ├── career/               # 职场组
+│   │   ├── career-survivor.yaml
+│   │   └── career-hot-watcher.yaml   🔗 知乎
+│   ├── finance/              # 财经组
+│   │   ├── market-analyst.yaml
+│   │   ├── news-interpreter.yaml     🔗 知乎
+│   │   └── investment-guru.yaml      🔗 知乎
 │   └── {username}.yaml       # distill 蒸馏自动生成
 ├── prompts/                  # Prompt 模板目录
 │   ├── viral.md
@@ -124,11 +143,20 @@ targets:
   scrape_source: users          # users | following | timeline
   users:                        # 目标用户 (scrape_source=users 时生效)
     - username: elonmusk
-      enabled: true
-  persona_template: random      # 人格模板: random | tech-blogger | 留空随机
+      enabled: false
+  persona_group: random         # 人格组: random | tech | social | career | finance
+  group_weights:                # 随机选组权重
+    tech: 40
+    career: 30
+    social: 35
+    finance: 30
+  reference_tweet_count: 2      # 生成时带入的参考推文数
 
 anthropic:
   model: deepseek-v4-pro
+  max_tokens: 2000
+  generation_retries: 3         # 生成内容为空时重试次数
+  system_prompt: "你是..."      # AI 角色定义，去 AI 味
   prompt_template: prompts/viral.md  # prompt 模板: viral | professional | casual | 留空
 
 scheduler:
@@ -136,7 +164,7 @@ scheduler:
   post_cron: "0 */4 * * *"     # 定时频率
   distill_cron: "0 0 */14 * *" # 蒸馏频率 (每两周)
   jitter_minutes: 30           # 时间扰动 ±30min
-  max_posts_per_day: [3, 6]    # 每天随机 3~6 条
+  max_posts_per_day: [1, 3]    # 每天随机在此范围内取值
   scrape_limit: 5
   following_limit: 5
   api_budget_per_day: 20       # API 日限额
@@ -144,10 +172,13 @@ scheduler:
   engage_limit: 5              # 每日互动次数
 
 nanobanana:
-  model: nano-banana            # 图片生成模型
+  model: nano-banana            # 图片生成模型 (主)
+
+openai:
+  model: gpt-image-2            # 图片生成模型 (备)
 
 image:
-  enabled: true
+  enabled: false
   output_dir: ./data/images
 ```
 
@@ -190,16 +221,45 @@ python -m src distill              # Claude 分析 → 人格
 # 蒸馏后自动保存为 personas/{username}.yaml, 下次可随机复用
 ```
 
-### 模板列表
+### 模板列表 (18个人格，4个组)
 
-| 文件 | 人格 | 风格 |
-|------|------|------|
-| `tech-blogger.yaml` | 科技博主 | 理性分析，第一性原理 |
-| `life-observer.yaml` | 文科生活家 | 细腻温暖，观察人性 |
-| `career-survivor.yaml` | 职场老江湖 | 犀利务实，考公考研职场 |
-| `gen-z-trendy.yaml` | 追热点年轻人 | 5G冲浪，玩梗吃瓜 |
-| `casual-observer.yaml` | 随性观察者 | 轻松生活化聊技术 |
-| `{username}.yaml` | 蒸馏生成 | `scrape`→`distill` 自动保存 |
+#### 💻 科技组 (tech)
+| 文件 | 人格 | 风格 | 数据源 |
+|------|------|------|--------|
+| `tech-blogger.yaml` | 科技博主 | 理性分析，第一性原理 | - |
+| `tech-discussant.yaml` | 技术讨论者 | 务实工程师，代码说话 | - |
+| `dev-insider.yaml` | 开发者内行人 | 接地气，聊搞钱和生存 | - |
+| `hot-tech-tracker.yaml` | 科技热点追踪者 | 信息密度高，像群友转发科技新闻 | 🔗 知乎 |
+
+#### 💬 社交组 (social)
+| 文件 | 人格 | 风格 | 数据源 |
+|------|------|------|--------|
+| `casual-observer.yaml` | 随性观察者 | 轻松生活化聊技术 | - |
+| `gen-z-trendy.yaml` | 追热点年轻人 | 5G冲浪，玩梗吃瓜 | - |
+| `life-observer.yaml` | 文科生活家 | 细腻温暖，观察人性 | - |
+| `hot-topic-debater.yaml` | 热点争论者 | 犀利不失理性 | 🔗 知乎 |
+| `meme-writer.yaml` | 梗文写手 | 幽默调侃，自嘲自黑 | - |
+| `story-writer.yaml` | 故事写手 | 微小说叙事，情理之中意料之外 | - |
+| `anecdote-teller.yaml` | 奇闻轶事讲述者 | 轻松聊天，引人入胜 | - |
+| `daily-life.yaml` | 生活日常分享者 | 朋友圈式碎碎念，接地气 | - |
+| `blue-promoter.yaml` | Blue增长推广员 | 互关引流，社区增长 | - |
+
+#### 💼 职场组 (career)
+| 文件 | 人格 | 风格 | 数据源 |
+|------|------|------|--------|
+| `career-survivor.yaml` | 职场老江湖 | 犀利务实，考公考研职场 | - |
+| `career-hot-watcher.yaml` | 职场热点观察员 | 理性务实，不贩卖焦虑 | 🔗 知乎 |
+
+#### 📈 财经组 (finance)
+| 文件 | 人格 | 风格 | 数据源 |
+|------|------|------|--------|
+| `market-analyst.yaml` | 市场分析师 | 数据说话，概率思维 | - |
+| `news-interpreter.yaml` | 新闻解读者 | 冷静客观，深挖事件脉络 | 🔗 知乎 |
+| `investment-guru.yaml` | 投资老法师 | 实战派，聊美股/基金/复利 | 🔗 知乎 |
+
+> 🔗 知乎 = 生成推文时会自动拉取知乎热榜/搜索数据作为实时上下文
+>
+> 蒸馏生成的人格 (`{username}.yaml`) 保存在 `personas/` 根目录
 
 ## Prompt 模板
 
