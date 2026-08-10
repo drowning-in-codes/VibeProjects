@@ -54,7 +54,7 @@ targets:
 
 # ── Scheduler ────────────────────────────────────────────
 scheduler:
-  run_immediately: true
+  run_immediately: false
   post_cron: "0 */4 * * *"      # 发帖频率
   distill_cron: "0 0 */14 * *"  # 爬取蒸馏频率 (每两周)
   jitter_minutes: 30            # 时间扰动 (分钟, 前后随机偏移, 0=不扰动)
