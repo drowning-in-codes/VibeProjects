@@ -39,26 +39,19 @@ class ImageManager:
         self.output_dir = Path(config.image_output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # ── Gemini 生图 (Primary) — nano-banana 模型, 经 autorouter 中转 ──
+        # ── 生图提供商 (按优先级从高到低) ──
+        self.providers = config.image_providers
         self.gemini_key = config.gemini_api_key
-        self.gemini_base_urls = [
-            self._strip_api_version(u) for u in config.gemini_base_urls
-        ]
-        self.gemini_model = config.gemini_model
-        self._gemini_ok = bool(self.gemini_key)
+        self.openai_key = config.openai_api_key
 
-        # ── GPT-Image-2 (Backup) ──
-        self.openai_client = self._make_openai_client(
-            config.openai_api_key,
-            config.openai_base_url,
-        )
-        self.gpt_image_model = config.get('openai.model', 'gpt-image-2')
-
-        # 日志
-        if self._gemini_ok:
-            logger.info(f"图片管理器: Gemini ({self.gemini_model}) + GPT-Image-2 备用")
-        elif self.openai_client:
-            logger.info(f"图片管理器: GPT-Image-2 ({self.gpt_image_model}) — Gemini 未配置")
+        # 日志: 列出可用的提供商
+        available = []
+        for p in self.providers:
+            key = self.gemini_key if p.get('type', 'gemini') == 'gemini' else self.openai_key
+            if key:
+                available.append(f"{p.get('type')}:{p.get('model')}")
+        if available:
+            logger.info(f"图片管理器 ({len(available)} 个提供商): {', '.join(available)}")
         else:
             logger.warning("未配置任何图片 API Key，图片生成不可用")
 
@@ -72,7 +65,8 @@ class ImageManager:
         """收集所有 API key 用于日志打码"""
         return [k for k in (
             self.gemini_key,
-            getattr(self.openai_client, 'api_key', None),
+            self.openai_key,
+            config.openai_backup_api_key,
         ) if k]
 
     @staticmethod
@@ -96,33 +90,40 @@ class ImageManager:
         """
         prompt = self._build_image_prompt(tweet_content, topic)
 
-        # 1. 尝试 Gemini (nano-banana)
-        if self._gemini_ok:
-            image_path = await self._try_gemini(prompt)
-            if image_path:
-                return image_path
-            logger.info("Gemini 失败，切换到 GPT-Image-2...")
-
-        # 2. 尝试 GPT-Image-2 (backup)
-        if self.openai_client:
-            image_path = await self._try_gpt_image(prompt)
+        # 按 image.providers 优先级依次尝试，任一成功即返回
+        for provider in self.providers:
+            image_path = await self._try_provider(provider, prompt)
             if image_path:
                 return image_path
 
-        # 3. 全部失败 → 降级纯文本
         logger.warning("⚠️ 图片生成失败，将以纯文本方式发布推文（不影响推文发送）")
         return None
 
     # ═══════════════════════════════════════════════════════════════
-    # Gemini 生图 (nano-banana 模型)
+    # 提供商分发生图
     # ═══════════════════════════════════════════════════════════════
 
-    async def _try_gemini(self, prompt: str) -> Optional[str]:
-        """Gemini 生图，按 base_urls 优先级依次尝试，全部失败返回 None"""
-        for base in self.gemini_base_urls:
+    async def _try_provider(self, provider: dict, prompt: str) -> Optional[str]:
+        """按 provider.type 分发生图，成功返回路径，失败返回 None"""
+        ptype = (provider.get('type') or 'gemini').lower()
+        model = provider.get('model') or ''
+        base_urls = provider.get('base_urls') or []
+        if ptype == 'openai':
+            return await self._try_openai(model, base_urls, prompt)
+        return await self._try_gemini(model, base_urls, prompt)
+
+    # ═══════════════════════════════════════════════════════════════
+    # Gemini 生图 (generateContent 协议)
+    # ═══════════════════════════════════════════════════════════════
+
+    async def _try_gemini(self, model: str, base_urls: list, prompt: str) -> Optional[str]:
+        """Gemini 协议生图，按 base_urls 优先级依次尝试，全部失败返回 None"""
+        if not self.gemini_key:
+            return None
+        for base in base_urls:
+            base = self._strip_api_version(base)
             url = (
-                f"{base}/v1beta/models/"
-                f"{self.gemini_model}:generateContent"
+                f"{base}/v1beta/models/{model}:generateContent"
                 f"?key={self.gemini_key}"
             )
 
@@ -140,7 +141,7 @@ class ImageManager:
 
                 image_data = self._parse_gemini_response(data)
                 if not image_data:
-                    logger.warning(f"Gemini 响应中未找到图片数据 [{base}]")
+                    logger.warning(f"Gemini 响应中未找到图片数据 [{model}@{base}]")
                     continue
 
                 image_path = self._save_base64_image(
@@ -148,12 +149,12 @@ class ImageManager:
                     image_data.get('mime', 'image/png'),
                 )
                 if image_path:
-                    logger.info(f"Gemini 图片生成成功 ({base}) → {image_path}")
+                    logger.info(f"Gemini 图片生成成功 ({model}@{base}) → {image_path}")
                     return image_path
 
             except Exception as e:
                 logger.warning(
-                    f"Gemini 调用失败 [{base}]: {_redact(str(e), self._secrets())}"
+                    f"Gemini 调用失败 [{model}@{base}]: {_redact(str(e), self._secrets())}"
                 )
 
         return None
@@ -185,31 +186,51 @@ class ImageManager:
             return None
 
     # ═══════════════════════════════════════════════════════════════
-    # GPT-Image-2 — Chat Completions (Backup)
+    # OpenAI 生图 (Chat Completions 协议)
     # ═══════════════════════════════════════════════════════════════
 
-    async def _try_gpt_image(self, prompt: str) -> Optional[str]:
-        """GPT-Image-2 图片生成"""
-        try:
-            completion = self.openai_client.chat.completions.create(
-                model=self.gpt_image_model,
-                messages=[{"role": "user", "content": prompt}],
+    async def _try_openai(self, model: str, base_urls: list, prompt: str) -> Optional[str]:
+        """OpenAI (Chat Completions) 协议生图，按 base_urls 优先级依次尝试"""
+        if not self.openai_key:
+            return None
+        for base in base_urls:
+            client = self._make_openai_client(
+                self.openai_key,
+                self._ensure_openai_base(base),
             )
-            content = completion.choices[0].message.content
-            if not content:
-                return None
+            try:
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                content = completion.choices[0].message.content
+                if not content:
+                    logger.warning(f"OpenAI 返回空内容 [{model}@{base}]")
+                    continue
 
-            image_url = self._extract_url_from_text(content)
-            if image_url:
-                image_path = await self._download_image(image_url)
-                if image_path:
-                    logger.info(f"GPT-Image-2 图片生成成功")
-                return image_path
-            return None
+                image_url = self._extract_url_from_text(content)
+                if image_url:
+                    image_path = await self._download_image(image_url)
+                    if image_path:
+                        logger.info(f"OpenAI 图片生成成功 ({model}@{base}) → {image_path}")
+                        return image_path
+                else:
+                    logger.warning(f"OpenAI 响应中未找到图片 URL [{model}@{base}]")
 
-        except Exception as e:
-            logger.warning(f"GPT-Image-2 调用失败: {_redact(str(e), self._secrets())}")
-            return None
+            except Exception as e:
+                logger.warning(
+                    f"OpenAI 调用失败 [{model}@{base}]: {_redact(str(e), self._secrets())}"
+                )
+
+        return None
+
+    @staticmethod
+    def _ensure_openai_base(url: str) -> str:
+        """确保 OpenAI base_url 以 /v1 结尾 (SDK 会拼接 /chat/completions)"""
+        url = url.rstrip('/')
+        if not url.endswith('/v1'):
+            url += '/v1'
+        return url
 
     @staticmethod
     def _extract_url_from_text(content: str) -> Optional[str]:

@@ -136,27 +136,29 @@ class Config:
         """预备 prompt 模板路径 (prompts/*.md 或空)"""
         return self.get('anthropic.prompt_template', '')
 
-    # ── Gemini 生图 (主) — nano-banana 模型, 经 autorouter 中转 ──
+    # ── 生图提供商 (按优先级) ─────────────────────────────
+
+    @property
+    def image_providers(self) -> list:
+        """生图提供商列表 (按优先级从高到低依次尝试)。
+        每项: {'type': 'gemini'|'openai', 'model': str, 'base_urls': [str, ...]}
+        """
+        providers = self.get('image.providers', None)
+        if isinstance(providers, list) and providers:
+            return providers
+        # 回退: 兼容旧配置 (单 gemini)
+        return [
+            {
+                'type': 'gemini',
+                'model': self.get('gemini.model', 'nano-banana'),
+                'base_urls': [os.getenv('NANOBANANA_BASE_URL', 'https://autorouter.io')],
+            },
+        ]
 
     @property
     def gemini_api_key(self) -> Optional[str]:
-        """Gemini 生图 API Key (兼容旧 NANOBANANA_API_KEY)"""
+        """Gemini 协议生图 API Key (兼容旧 NANOBANANA_API_KEY)"""
         return os.getenv('GEMINI_API_KEY') or os.getenv('NANOBANANA_API_KEY')
-
-    @property
-    def gemini_base_urls(self) -> list:
-        """Gemini 生图中转地址列表 (按优先级从高到低)"""
-        urls = self.get('gemini.base_urls', None)
-        if isinstance(urls, list) and urls:
-            return urls
-        # 回退: 单地址 (兼容旧 NANOBANANA_BASE_URL)
-        single = os.getenv('NANOBANANA_BASE_URL', 'https://autorouter.io')
-        return [single]
-
-    @property
-    def gemini_model(self) -> str:
-        """Gemini 生图模型名称"""
-        return self.get('gemini.model', 'nano-banana')
 
     # ── OpenAI (DALL-E) ───────────────────────────────────
 

@@ -19,19 +19,27 @@ anthropic:
   prompt_template: prompts/viral.md
 
 # ── Image Generation ─────────────────────────────────────
-# Primary: Gemini 协议生图 (nano-banana 模型), 经 autorouter 中转
-# Backup:  GPT-Image-2 (Chat Completions)
-gemini:
-  model: nano-banana          # 模型名称
-  size: 1024x1024
-  base_urls:                  # 中转地址 (按优先级从高到低)
-    - https://autorouter.net  # 优先级最高
-    - https://autorouter.io
-
-openai:
-  model: gpt-image-2
-  size: 1024x1024
-  quality: standard
+# 生图提供商, 按优先级从高到低依次尝试 (失败自动切换下一个)
+# type: gemini = Gemini generateContent 协议 / openai = Chat Completions 协议
+image:
+  enabled: false
+  output_dir: ./data/images
+  providers:
+    - type: gemini              # 优先级 1
+      model: nano-banana-2
+      base_urls:
+        - https://autorouter.net  # 站点优先级最高
+        - https://autorouter.io
+    - type: gemini              # 优先级 2
+      model: gemini-3.1-flash-image-preview
+      base_urls:
+        - https://autorouter.net
+        - https://autorouter.io
+    - type: openai              # 优先级 3 (Chat Completions)
+      model: gpt-image-2
+      base_urls:
+        - https://autorouter.net
+        - https://autorouter.io
 
 # ── Targets: users to crawl & mimic ───────────────────────
 # scrape_source: "users" | "following" | "timeline" (默认 users)
@@ -73,11 +81,6 @@ scheduler:
 # ── Database ──────────────────────────────────────────────
 database:
   path: ./data/easytwit.db
-
-# ── Image Output ─────────────────────────────────────────
-image:
-  enabled: false
-  output_dir: ./data/images
 
 # ── Logging ──────────────────────────────────────────────
 logging:

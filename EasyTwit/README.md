@@ -90,7 +90,7 @@ EasyTwit/
 │   ├── ai/                   # AI 模块
 │   │   ├── persona.py        # 人格蒸馏 + 模板加载
 │   │   ├── generator.py      # 推文生成 + Prompt 模板
-│   │   ├── image.py          # Gemini (nano-banana) + GPT-Image-2
+│   │   ├── image.py          # 多提供商生图 (Gemini/OpenAI 协议)
 │   │   └── fallback.py       # API 主备切换
 │   ├── zhihu/                # 知乎数据源
 │   │   └── client.py         # 热榜/搜索/直答 AI
@@ -171,18 +171,25 @@ scheduler:
   metrics_fetch_limit: 10
   engage_limit: 5              # 每日互动次数
 
-gemini:
-  model: nano-banana            # 图片生成模型 (主)
-  base_urls:                    # 中转地址 (按优先级)
-    - https://autorouter.net
-    - https://autorouter.io
-
-openai:
-  model: gpt-image-2            # 图片生成模型 (备)
-
 image:
   enabled: false
   output_dir: ./data/images
+  providers:                     # 生图提供商 (按优先级从高到低依次尝试)
+    - type: gemini               # Gemini generateContent 协议
+      model: nano-banana-2
+      base_urls:                 # 站点 (按优先级)
+        - https://autorouter.net
+        - https://autorouter.io
+    - type: gemini
+      model: gemini-3.1-flash-image-preview
+      base_urls:
+        - https://autorouter.net
+        - https://autorouter.io
+    - type: openai               # Chat Completions 协议
+      model: gpt-image-2
+      base_urls:
+        - https://autorouter.net
+        - https://autorouter.io
 ```
 
 ## 人格系统
@@ -282,15 +289,18 @@ anthropic:
 
 ## 图片生成链
 
+按 `image.providers` 优先级依次尝试 (任一失败自动切换下一个):
+
 ```
-Gemini 生图 (nano-banana 模型, 经 autorouter 中转)
-    ├─ https://autorouter.net  (优先级最高)
-    └─ https://autorouter.io
+1. nano-banana-2                   (Gemini 协议) → autorouter.net → autorouter.io
+2. gemini-3.1-flash-image-preview  (Gemini 协议) → autorouter.net → autorouter.io
+3. gpt-image-2                     (Chat Completions) → autorouter.net → autorouter.io
     ↓ 全部失败
-GPT-Image-2 (Chat Completions)
-    ↓ 失败
 纯文本发布 (不阻断)
 ```
+
+> `type: gemini` 走 Gemini `generateContent` 协议 (key: `GEMINI_API_KEY`)
+> `type: openai` 走 Chat Completions 协议 (key: `OPENAI_API_KEY`)
 
 ## 数据追踪 & 增长
 

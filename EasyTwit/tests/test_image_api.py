@@ -15,53 +15,57 @@ from openai import OpenAI
 
 load_dotenv(override=True)
 
-API_KEY = os.getenv("NANOBANANA_API_KEY", "")
-BASE_URL = os.getenv("NANOBANANA_BASE_URL", "https://autorouter.io")
+API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("NANOBANANA_API_KEY", "")
+BASE_URL = "https://autorouter.net"
 GPT_KEY = os.getenv("OPENAI_API_KEY", "")
 GPT_URL = os.getenv("OPENAI_BASE_URL", "https://autorouter.io/v1")
 
 PROMPT = "A beautiful sunset over a calm ocean, minimalist pastel colors, peaceful atmosphere"
 
-print(f"nanobanana:   {BASE_URL}")
+print(f"Gemini base:  {BASE_URL}")
 print(f"GPT-Image-2:  {GPT_URL}")
 print()
 
 # ═══════════════════════════════════════════════════════════════
-# 测试 1: nanobanana (Gemini API)
+# 测试 1: Gemini 生图 (多模型名对比)
 # ═══════════════════════════════════════════════════════════════
 
 print("=" * 60)
-print("测试 1: nanobanana (Gemini 2.5 Flash Image)")
+print("测试 1: Gemini 生图 (autorouter.net, 多模型名)")
 print("=" * 60)
 
-url = f"{BASE_URL}/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key={API_KEY}"
-body = {"contents": [{"parts": [{"text": PROMPT}]}]}
+MODELS = ["nano-banana", "gemini-2.5-flash-image-preview"]
 
-try:
-    with httpx.Client(timeout=120) as c:
-        resp = c.post(url, json=body)
-        print(f"   HTTP {resp.status_code}")
+for model in MODELS:
+    url = f"{BASE_URL}/v1beta/models/{model}:generateContent?key={API_KEY}"
+    body = {"contents": [{"parts": [{"text": PROMPT}]}]}
+    print(f"\n--- 模型: {model} ---")
 
-        if resp.status_code == 200:
-            data = resp.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                for i, p in enumerate(parts):
-                    if "inlineData" in p:
-                        mime = p["inlineData"].get("mimeType", "?")
-                        size = len(p["inlineData"].get("data", ""))
-                        print(f"   ✅ part[{i}]: {mime}, {size} bytes (base64)")
-                    elif "text" in p:
-                        print(f"   ✅ part[{i}]: text ({len(p['text'])} chars)")
-                        print(f"      {p['text'][:200]}...")
+    try:
+        with httpx.Client(timeout=120) as c:
+            resp = c.post(url, json=body)
+            print(f"   HTTP {resp.status_code}")
+
+            if resp.status_code == 200:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    for i, p in enumerate(parts):
+                        if "inlineData" in p:
+                            mime = p["inlineData"].get("mimeType", "?")
+                            size = len(p["inlineData"].get("data", ""))
+                            print(f"   ✅ part[{i}]: {mime}, {size} bytes (base64)")
+                        elif "text" in p:
+                            print(f"   ✅ part[{i}]: text ({len(p['text'])} chars)")
+                            print(f"      {p['text'][:200]}...")
+                else:
+                    print(f"   ⚠️  no candidates")
+                    print(f"   Response: {json.dumps(data, indent=2)[:300]}")
             else:
-                print(f"   ⚠️  no candidates")
-                print(f"   Response: {json.dumps(data, indent=2)[:300]}")
-        else:
-            print(f"   ❌ {resp.text[:200]}")
-except Exception as e:
-    print(f"   ❌ 请求失败: {e}")
+                print(f"   ❌ {resp.text[:200]}")
+    except Exception as e:
+        print(f"   ❌ 请求失败: {e}")
 
 print()
 

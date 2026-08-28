@@ -30,25 +30,21 @@ def _mask(key: str) -> str:
 
 async def main():
     print("=" * 60)
-    print("当前生图配置")
+    print("当前生图配置 (按优先级)")
     print("=" * 60)
     print(f"image.enabled      : {config.image_enabled}")
-    print(f"gemini.model       : {config.gemini_model}")
-    print(f"gemini.base_urls   : {config.gemini_base_urls}")
     print(f"gemini.api_key     : {_mask(config.gemini_api_key)}")
-    print(f"openai.base_url    : {config.openai_base_url or '(官方)'}")
-    print(f"openai.model       : {config.get('openai.model', 'gpt-image-2')}")
     print(f"openai.api_key     : {_mask(config.openai_api_key)}")
     print()
-
-    # 实际拼出来的 Gemini URL (key 打码)
-    if config.gemini_api_key:
-        from src.ai.image import ImageManager as IM
-        base = IM._strip_api_version(config.gemini_base_urls[0])
-        url = (f"{base}/v1beta/models/{config.gemini_model}:generateContent"
-               f"?key=***")
-        print(f"Gemini 实际 URL (最高优先级) : {url}")
-        print()
+    for i, p in enumerate(config.image_providers, 1):
+        ptype = p.get('type', 'gemini')
+        model = p.get('model', '?')
+        base_urls = p.get('base_urls', [])
+        key = config.gemini_api_key if ptype == 'gemini' else config.openai_api_key
+        print(f"[{i}] {ptype:6s} {model}  (key: {_mask(key)})")
+        for u in base_urls:
+            print(f"      └─ {u}")
+    print()
 
     prompt = sys.argv[1] if len(sys.argv) > 1 else "AI会改变未来"
 

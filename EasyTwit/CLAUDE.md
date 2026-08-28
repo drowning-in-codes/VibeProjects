@@ -19,7 +19,7 @@ EasyTwit/
 │   ├── ai/
 │   │   ├── persona.py     人格蒸馏+自定义生成 (Claude API)
 │   │   ├── generator.py   推文内容生成 (Claude API)
-│   │   ├── image.py       Gemini(主)+GPT-Image-2(备)配图
+│   │   ├── image.py       多提供商生图(Gemini/OpenAI协议)
 │   │   └── fallback.py    API主备切换工具
 │   └── storage/
 │       ├── models.py      Tweet/Persona/PostHistory dataclass
@@ -126,17 +126,17 @@ def _unwrap(response) -> Optional[Dict]:
 
 ## 图片生成链
 
+按 `image.providers` 优先级依次尝试 (任一失败自动切换下一个):
+
 ```
-Gemini 生图 (nano-banana 模型, 经 autorouter 中转)
-    ├─ https://autorouter.net  (优先级最高)
-    └─ https://autorouter.io
+1. nano-banana-2                   (Gemini 协议) → autorouter.net → autorouter.io
+2. gemini-3.1-flash-image-preview  (Gemini 协议) → autorouter.net → autorouter.io
+3. gpt-image-2                     (Chat Completions) → autorouter.net → autorouter.io
     ↓ 全部失败
-GPT-Image-2 (Chat Completions)
-    ↓ 失败
 纯文本发布 (不阻断)
 ```
 
-Gemini 生图接口:
+Gemini 生图接口 (`type: gemini`):
 ```
 POST {base}/v1beta/models/{model}:generateContent?key={api_key}
 Body: {"contents": [{"parts": [{"text": "prompt"}]}]}
@@ -145,13 +145,20 @@ Response: candidates[0].content.parts[].inlineData.data (base64)
 
 配置项 (`config.yaml`):
 ```yaml
-gemini:
-  model: nano-banana          # 模型名称
-  base_urls:                  # 中转地址 (按优先级)
-    - https://autorouter.net
-    - https://autorouter.io
+image:
+  providers:                  # 生图提供商 (按优先级从高到低)
+    - type: gemini            # generateContent 协议, key: GEMINI_API_KEY
+      model: nano-banana-2
+      base_urls:
+        - https://autorouter.net
+        - https://autorouter.io
+    - type: openai            # Chat Completions 协议, key: OPENAI_API_KEY
+      model: gpt-image-2
+      base_urls:
+        - https://autorouter.net
+        - https://autorouter.io
 ```
-环境变量: `GEMINI_API_KEY` (兼容旧 `NANOBANANA_API_KEY`)
+环境变量: `GEMINI_API_KEY` (兼容旧 `NANOBANANA_API_KEY`) / `OPENAI_API_KEY`
 
 ## API 主备切换
 
@@ -165,6 +172,6 @@ gemini:
 - XDK 需 OAuth 1.0a 四件套，在 X Developer Portal → Keys and Tokens 获取
 - config.py 支持代理 (HTTPS_PROXY环境变量)
 - 数据库: SQLite, 异步访问 (aiosqlite)
-- 图片: Gemini (nano-banana 模型) + GPT-Image-2 (Chat Completions)，下载到 data/images/
+- 图片: 多提供商按优先级生图 (image.providers: gemini/openai 协议)，下载到 data/images/
 - 日志: loguru, 输出到控制台 + logs/easytwit.log
 - XDK 版本: 0.1.0, 返回 Pydantic 模型 (.data 获取 dict)
