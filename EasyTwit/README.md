@@ -102,12 +102,16 @@ EasyTwit/
 │   │   ├── tech-blogger.yaml
 │   │   ├── tech-discussant.yaml
 │   │   ├── dev-insider.yaml
-│   │   └── hot-tech-tracker.yaml     🔗 知乎
+│   │   ├── hot-tech-tracker.yaml     🔗 知乎
+│   │   ├── ai-news-digest.yaml       🔗 知乎
+│   │   └── open-source-watcher.yaml  🔗 知乎
 │   ├── social/               # 社交组
 │   │   ├── casual-observer.yaml
 │   │   ├── gen-z-trendy.yaml
 │   │   ├── life-observer.yaml
 │   │   ├── hot-topic-debater.yaml    🔗 知乎
+│   │   ├── hot-search-commentator.yaml   🔗 知乎
+│   │   ├── current-affairs-observer.yaml 🔗 知乎
 │   │   ├── meme-writer.yaml
 │   │   ├── story-writer.yaml
 │   │   ├── anecdote-teller.yaml
@@ -115,11 +119,13 @@ EasyTwit/
 │   │   └── blue-promoter.yaml
 │   ├── career/               # 职场组
 │   │   ├── career-survivor.yaml
-│   │   └── career-hot-watcher.yaml   🔗 知乎
+│   │   ├── career-hot-watcher.yaml   🔗 知乎
+│   │   └── employment-trend-watcher.yaml 🔗 知乎
 │   ├── finance/              # 财经组
 │   │   ├── market-analyst.yaml
 │   │   ├── news-interpreter.yaml     🔗 知乎
-│   │   └── investment-guru.yaml      🔗 知乎
+│   │   ├── investment-guru.yaml      🔗 知乎
+│   │   └── market-news-tracker.yaml  🔗 知乎
 │   └── {username}.yaml       # distill 蒸馏自动生成
 ├── prompts/                  # Prompt 模板目录
 │   ├── viral.md
@@ -231,7 +237,7 @@ python -m src distill              # Claude 分析 → 人格
 # 蒸馏后自动保存为 personas/{username}.yaml, 下次可随机复用
 ```
 
-### 模板列表 (18个人格，4个组)
+### 模板列表 (24个人格，4个组)
 
 #### 💻 科技组 (tech)
 | 文件 | 人格 | 风格 | 数据源 |
@@ -240,6 +246,8 @@ python -m src distill              # Claude 分析 → 人格
 | `tech-discussant.yaml` | 技术讨论者 | 务实工程师，代码说话 | - |
 | `dev-insider.yaml` | 开发者内行人 | 接地气，聊搞钱和生存 | - |
 | `hot-tech-tracker.yaml` | 科技热点追踪者 | 信息密度高，像群友转发科技新闻 | 🔗 知乎 |
+| `ai-news-digest.yaml` | AI新闻速递员 | 快准狠，AI行业新闻速递 | 🔗 知乎 |
+| `open-source-watcher.yaml` | 开源观察哨 | 追踪热门开源项目与社区 | 🔗 知乎 |
 
 #### 💬 社交组 (social)
 | 文件 | 人格 | 风格 | 数据源 |
@@ -248,6 +256,8 @@ python -m src distill              # Claude 分析 → 人格
 | `gen-z-trendy.yaml` | 追热点年轻人 | 5G冲浪，玩梗吃瓜 | - |
 | `life-observer.yaml` | 文科生活家 | 细腻温暖，观察人性 | - |
 | `hot-topic-debater.yaml` | 热点争论者 | 犀利不失理性 | 🔗 知乎 |
+| `hot-search-commentator.yaml` | 热搜评论员 | 吃瓜有态度，评论有角度 | 🔗 知乎 |
+| `current-affairs-observer.yaml` | 时事观察员 | 克制客观，把新闻放到大背景看 | 🔗 知乎 |
 | `meme-writer.yaml` | 梗文写手 | 幽默调侃，自嘲自黑 | - |
 | `story-writer.yaml` | 故事写手 | 微小说叙事，情理之中意料之外 | - |
 | `anecdote-teller.yaml` | 奇闻轶事讲述者 | 轻松聊天，引人入胜 | - |
@@ -259,6 +269,7 @@ python -m src distill              # Claude 分析 → 人格
 |------|------|------|--------|
 | `career-survivor.yaml` | 职场老江湖 | 犀利务实，考公考研职场 | - |
 | `career-hot-watcher.yaml` | 职场热点观察员 | 理性务实，不贩卖焦虑 | 🔗 知乎 |
+| `employment-trend-watcher.yaml` | 就业趋势观察员 | 数据说话，帮打工人看清方向 | 🔗 知乎 |
 
 #### 📈 财经组 (finance)
 | 文件 | 人格 | 风格 | 数据源 |
@@ -266,6 +277,7 @@ python -m src distill              # Claude 分析 → 人格
 | `market-analyst.yaml` | 市场分析师 | 数据说话，概率思维 | - |
 | `news-interpreter.yaml` | 新闻解读者 | 冷静客观，深挖事件脉络 | 🔗 知乎 |
 | `investment-guru.yaml` | 投资老法师 | 实战派，聊美股/基金/复利 | 🔗 知乎 |
+| `market-news-tracker.yaml` | 财经热点追踪 | 把财经新闻翻译成大白话 | 🔗 知乎 |
 
 > 🔗 知乎 = 生成推文时会自动拉取知乎热榜/搜索数据作为实时上下文
 >
