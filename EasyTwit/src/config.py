@@ -136,22 +136,27 @@ class Config:
         """预备 prompt 模板路径 (prompts/*.md 或空)"""
         return self.get('anthropic.prompt_template', '')
 
-    # ── nanobanana (Gemini 2.5 Flash Image) ───────────────
+    # ── Gemini 生图 (主) — nano-banana 模型, 经 autorouter 中转 ──
 
     @property
-    def nanobanana_api_key(self) -> Optional[str]:
-        """nanobanana API Key"""
-        return os.getenv('NANOBANANA_API_KEY', None)
+    def gemini_api_key(self) -> Optional[str]:
+        """Gemini 生图 API Key (兼容旧 NANOBANANA_API_KEY)"""
+        return os.getenv('GEMINI_API_KEY') or os.getenv('NANOBANANA_API_KEY')
 
     @property
-    def nanobanana_base_url(self) -> str:
-        """nanobanana API Base URL"""
-        return os.getenv('NANOBANANA_BASE_URL', 'https://autorouter.io')
+    def gemini_base_urls(self) -> list:
+        """Gemini 生图中转地址列表 (按优先级从高到低)"""
+        urls = self.get('gemini.base_urls', None)
+        if isinstance(urls, list) and urls:
+            return urls
+        # 回退: 单地址 (兼容旧 NANOBANANA_BASE_URL)
+        single = os.getenv('NANOBANANA_BASE_URL', 'https://autorouter.io')
+        return [single]
 
     @property
-    def nanobanana_model(self) -> str:
-        """nanobanana 模型名称"""
-        return self.get('nanobanana.model', 'nano-banana')
+    def gemini_model(self) -> str:
+        """Gemini 生图模型名称"""
+        return self.get('gemini.model', 'nano-banana')
 
     # ── OpenAI (DALL-E) ───────────────────────────────────
 

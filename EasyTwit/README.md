@@ -37,7 +37,7 @@ X_ACCESS_TOKEN=...                     # OAuth 1.0a Access Token
 X_ACCESS_TOKEN_SECRET=...              # OAuth 1.0a Access Token Secret
 # 可选
 X_BEARER_TOKEN=...                     # 趋势接口
-NANOBANANA_API_KEY=sk-...              # 图片生成 (主)
+GEMINI_API_KEY=sk-...                  # 图片生成 (主, Gemini 协议)
 OPENAI_API_KEY=sk-...                  # 图片生成 (备)
 ```
 
@@ -90,7 +90,7 @@ EasyTwit/
 │   ├── ai/                   # AI 模块
 │   │   ├── persona.py        # 人格蒸馏 + 模板加载
 │   │   ├── generator.py      # 推文生成 + Prompt 模板
-│   │   ├── image.py          # nanobanana + GPT-Image-2
+│   │   ├── image.py          # Gemini (nano-banana) + GPT-Image-2
 │   │   └── fallback.py       # API 主备切换
 │   ├── zhihu/                # 知乎数据源
 │   │   └── client.py         # 热榜/搜索/直答 AI
@@ -171,8 +171,11 @@ scheduler:
   metrics_fetch_limit: 10
   engage_limit: 5              # 每日互动次数
 
-nanobanana:
+gemini:
   model: nano-banana            # 图片生成模型 (主)
+  base_urls:                    # 中转地址 (按优先级)
+    - https://autorouter.net
+    - https://autorouter.io
 
 openai:
   model: gpt-image-2            # 图片生成模型 (备)
@@ -280,8 +283,10 @@ anthropic:
 ## 图片生成链
 
 ```
-nanobanana (Gemini API)
-    ↓ 失败
+Gemini 生图 (nano-banana 模型, 经 autorouter 中转)
+    ├─ https://autorouter.net  (优先级最高)
+    └─ https://autorouter.io
+    ↓ 全部失败
 GPT-Image-2 (Chat Completions)
     ↓ 失败
 纯文本发布 (不阻断)

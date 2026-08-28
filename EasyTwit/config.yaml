@@ -19,11 +19,14 @@ anthropic:
   prompt_template: prompts/viral.md
 
 # ── Image Generation ─────────────────────────────────────
-# Primary: nanobanana (Gemini API)
+# Primary: Gemini 协议生图 (nano-banana 模型), 经 autorouter 中转
 # Backup:  GPT-Image-2 (Chat Completions)
-nanobanana:
-  model: nano-banana
+gemini:
+  model: nano-banana          # 模型名称
   size: 1024x1024
+  base_urls:                  # 中转地址 (按优先级从高到低)
+    - https://autorouter.net  # 优先级最高
+    - https://autorouter.io
 
 openai:
   model: gpt-image-2

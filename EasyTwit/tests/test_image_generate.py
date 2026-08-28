@@ -1,6 +1,6 @@
 """
 生图测试 — 使用当前 config.yaml + .env 配置
-直接走 ImageManager 生产链路: nanobanana(主) → GPT-Image-2(备) → 纯文本降级
+直接走 ImageManager 生产链路: Gemini(主) → GPT-Image-2(备) → 纯文本降级
 
 用法:
     python tests/test_image_generate.py
@@ -32,22 +32,22 @@ async def main():
     print("=" * 60)
     print("当前生图配置")
     print("=" * 60)
-    print(f"image.enabled        : {config.image_enabled}")
-    print(f"nanobanana.base_url  : {config.nanobanana_base_url}")
-    print(f"nanobanana.model     : {config.nanobanana_model}")
-    print(f"nanobanana.api_key   : {_mask(config.nanobanana_api_key)}")
-    print(f"openai.base_url      : {config.openai_base_url or '(官方)'}")
-    print(f"openai.model         : {config.get('openai.model', 'gpt-image-2')}")
-    print(f"openai.api_key       : {_mask(config.openai_api_key)}")
+    print(f"image.enabled      : {config.image_enabled}")
+    print(f"gemini.model       : {config.gemini_model}")
+    print(f"gemini.base_urls   : {config.gemini_base_urls}")
+    print(f"gemini.api_key     : {_mask(config.gemini_api_key)}")
+    print(f"openai.base_url    : {config.openai_base_url or '(官方)'}")
+    print(f"openai.model       : {config.get('openai.model', 'gpt-image-2')}")
+    print(f"openai.api_key     : {_mask(config.openai_api_key)}")
     print()
 
-    # 实际拼出来的 nanobanana URL (key 打码)
-    if config.nanobanana_api_key:
+    # 实际拼出来的 Gemini URL (key 打码)
+    if config.gemini_api_key:
         from src.ai.image import ImageManager as IM
-        base = IM._strip_api_version(config.nanobanana_base_url)
-        url = (f"{base}/v1beta/models/{config.nanobanana_model}:generateContent"
+        base = IM._strip_api_version(config.gemini_base_urls[0])
+        url = (f"{base}/v1beta/models/{config.gemini_model}:generateContent"
                f"?key=***")
-        print(f"nanobanana 实际 URL : {url}")
+        print(f"Gemini 实际 URL (最高优先级) : {url}")
         print()
 
     prompt = sys.argv[1] if len(sys.argv) > 1 else "AI会改变未来"

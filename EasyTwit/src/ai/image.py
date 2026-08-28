@@ -39,11 +39,13 @@ class ImageManager:
         self.output_dir = Path(config.image_output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # ── nanobanana (Primary) ──
-        self.nanobanana_key = config.nanobanana_api_key
-        self.nanobanana_base = self._strip_api_version(config.nanobanana_base_url)
-        self.nanobanana_model = config.nanobanana_model
-        self._nanobanana_ok = bool(self.nanobanana_key)
+        # ── Gemini 生图 (Primary) — nano-banana 模型, 经 autorouter 中转 ──
+        self.gemini_key = config.gemini_api_key
+        self.gemini_base_urls = [
+            self._strip_api_version(u) for u in config.gemini_base_urls
+        ]
+        self.gemini_model = config.gemini_model
+        self._gemini_ok = bool(self.gemini_key)
 
         # ── GPT-Image-2 (Backup) ──
         self.openai_client = self._make_openai_client(
@@ -53,10 +55,10 @@ class ImageManager:
         self.gpt_image_model = config.get('openai.model', 'gpt-image-2')
 
         # 日志
-        if self._nanobanana_ok:
-            logger.info(f"图片管理器: nanobanana ({self.nanobanana_model}) + GPT-Image-2 备用")
+        if self._gemini_ok:
+            logger.info(f"图片管理器: Gemini ({self.gemini_model}) + GPT-Image-2 备用")
         elif self.openai_client:
-            logger.info(f"图片管理器: GPT-Image-2 ({self.gpt_image_model}) — nanobanana 未配置")
+            logger.info(f"图片管理器: GPT-Image-2 ({self.gpt_image_model}) — Gemini 未配置")
         else:
             logger.warning("未配置任何图片 API Key，图片生成不可用")
 
@@ -69,7 +71,7 @@ class ImageManager:
     def _secrets(self) -> list:
         """收集所有 API key 用于日志打码"""
         return [k for k in (
-            self.nanobanana_key,
+            self.gemini_key,
             getattr(self.openai_client, 'api_key', None),
         ) if k]
 
@@ -94,12 +96,12 @@ class ImageManager:
         """
         prompt = self._build_image_prompt(tweet_content, topic)
 
-        # 1. 尝试 nanobanana
-        if self._nanobanana_ok:
-            image_path = await self._try_nanobanana(prompt)
+        # 1. 尝试 Gemini (nano-banana)
+        if self._gemini_ok:
+            image_path = await self._try_gemini(prompt)
             if image_path:
                 return image_path
-            logger.info("nanobanana 失败，切换到 GPT-Image-2...")
+            logger.info("Gemini 失败，切换到 GPT-Image-2...")
 
         # 2. 尝试 GPT-Image-2 (backup)
         if self.openai_client:
@@ -112,45 +114,49 @@ class ImageManager:
         return None
 
     # ═══════════════════════════════════════════════════════════════
-    # nanobanana 模型族
+    # Gemini 生图 (nano-banana 模型)
     # ═══════════════════════════════════════════════════════════════
 
-    async def _try_nanobanana(self, prompt: str) -> Optional[str]:
-        """nanobanana 图片生成"""
-        url = (
-            f"{self.nanobanana_base}/v1beta/models/"
-            f"{self.nanobanana_model}:generateContent"
-            f"?key={self.nanobanana_key}"
-        )
-
-        body = {
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }]
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.post(url, json=body)
-                resp.raise_for_status()
-                data = resp.json()
-
-            image_data = self._parse_gemini_response(data)
-            if not image_data:
-                logger.warning("nanobanana 响应中未找到图片数据")
-                return None
-
-            image_path = self._save_base64_image(
-                image_data.get('data', ''),
-                image_data.get('mime', 'image/png'),
+    async def _try_gemini(self, prompt: str) -> Optional[str]:
+        """Gemini 生图，按 base_urls 优先级依次尝试，全部失败返回 None"""
+        for base in self.gemini_base_urls:
+            url = (
+                f"{base}/v1beta/models/"
+                f"{self.gemini_model}:generateContent"
+                f"?key={self.gemini_key}"
             )
-            if image_path:
-                logger.info(f"nanobanana 图片生成成功 → {image_path}")
-            return image_path
 
-        except Exception as e:
-            logger.warning(f"nanobanana 调用失败: {_redact(str(e), self._secrets())}")
-            return None
+            body = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }]
+            }
+
+            try:
+                async with httpx.AsyncClient(timeout=120) as client:
+                    resp = await client.post(url, json=body)
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                image_data = self._parse_gemini_response(data)
+                if not image_data:
+                    logger.warning(f"Gemini 响应中未找到图片数据 [{base}]")
+                    continue
+
+                image_path = self._save_base64_image(
+                    image_data.get('data', ''),
+                    image_data.get('mime', 'image/png'),
+                )
+                if image_path:
+                    logger.info(f"Gemini 图片生成成功 ({base}) → {image_path}")
+                    return image_path
+
+            except Exception as e:
+                logger.warning(
+                    f"Gemini 调用失败 [{base}]: {_redact(str(e), self._secrets())}"
+                )
+
+        return None
 
     @staticmethod
     def _parse_gemini_response(data: dict) -> Optional[dict]:
