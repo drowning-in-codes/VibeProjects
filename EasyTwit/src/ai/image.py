@@ -14,6 +14,24 @@ from openai import OpenAI
 from ..config import config
 
 
+def _redact(text: str, secrets) -> str:
+    """将字符串中的敏感信息替换为 ***，避免写入日志。
+
+    1. 打码已知的 API key 值
+    2. 打码 URL 中 key=... 查询参数 (可能 key 未知)
+    3. 打码 Authorization: Bearer ... 头
+    """
+    import re
+    for s in secrets:
+        if s and s in text:
+            text = text.replace(s, "***")
+    # key=xxx 查询参数 (直至 & 或空白或引号)
+    text = re.sub(r'(key=)[^&\s\'"]+', r'\1***', text)
+    # Bearer token
+    text = re.sub(r'(Bearer\s+)[A-Za-z0-9._\-]+', r'\1***', text)
+    return text
+
+
 class ImageManager:
     """图片管理器 — nanobanana 模型族(主) + GPT-Image-2(备) + 本地缓存"""
 
@@ -47,6 +65,13 @@ class ImageManager:
         """去掉 base URL 中末尾的 /v1 等版本号（Gemini 端点自带 v1beta）"""
         import re
         return re.sub(r'/v\d+$', '', url)
+
+    def _secrets(self) -> list:
+        """收集所有 API key 用于日志打码"""
+        return [k for k in (
+            self.nanobanana_key,
+            getattr(self.openai_client, 'api_key', None),
+        ) if k]
 
     @staticmethod
     def _make_openai_client(api_key: Optional[str], base_url: Optional[str] = None) -> Optional[OpenAI]:
@@ -124,7 +149,7 @@ class ImageManager:
             return image_path
 
         except Exception as e:
-            logger.warning(f"nanobanana 调用失败: {e}")
+            logger.warning(f"nanobanana 调用失败: {_redact(str(e), self._secrets())}")
             return None
 
     @staticmethod
@@ -177,7 +202,7 @@ class ImageManager:
             return None
 
         except Exception as e:
-            logger.warning(f"GPT-Image-2 调用失败: {e}")
+            logger.warning(f"GPT-Image-2 调用失败: {_redact(str(e), self._secrets())}")
             return None
 
     @staticmethod
