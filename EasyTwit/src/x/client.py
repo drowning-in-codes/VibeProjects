@@ -108,8 +108,9 @@ class XClient:
     def post(self, text: str, media_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         """发布推文"""
         self._require()
-        if len(text) > 280:
-            text = text[:277] + "..."
+        limit = config.max_post_chars
+        if len(text) > limit:
+            text = text[:limit - 3] + "..."
 
         media = {"media_ids": media_ids} if media_ids else None
         body = CreateRequest(text=text, media=media)

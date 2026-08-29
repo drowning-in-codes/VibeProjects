@@ -96,6 +96,23 @@ class Config:
         """X API 请求超时（秒）"""
         return self.get('x.timeout', 30)
 
+    @property
+    def is_premium(self) -> bool:
+        """X 账号是否为 Premium (决定单条推文字符上限)"""
+        return bool(self.get('x.premium', False))
+
+    @property
+    def max_post_chars(self) -> int:
+        """单条推文字符上限: Premium 25000, 普通 280"""
+        return 25000 if self.is_premium else 280
+
+    @property
+    def thread_chunk_chars(self) -> int:
+        """推文串 (thread) 单条字符上限。
+        Premium 账号几乎无需拆分 (上限即 25000)；普通账号留 10 字符续写空间。
+        """
+        return self.max_post_chars if self.is_premium else 270
+
     # ── Anthropic (Claude) ────────────────────────────────
 
     @property

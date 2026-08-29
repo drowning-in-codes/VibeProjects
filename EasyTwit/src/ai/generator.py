@@ -179,8 +179,8 @@ class ContentGenerator:
                 tweet_content = tweet_content[1:-1]
 
             logger.info(f"推文生成成功 ({len(tweet_content)} 字符): {tweet_content[:60]}...")
-            if len(tweet_content) > 280:
-                logger.info(f"内容超过 280 字符，将以推文串 (thread) 形式发布")
+            if len(tweet_content) > config.max_post_chars:
+                logger.info(f"内容超过 {config.max_post_chars} 字符，将以推文串 (thread) 形式发布")
 
             # 智能判断是否需要配图
             if with_image is None:
@@ -261,12 +261,18 @@ class ContentGenerator:
         else:
             parts.append(f"请自由选择一个符合该用户兴趣的话题（如: {topics_str}）")
 
-        parts.append("""
+        limit = config.max_post_chars
+        if config.is_premium:
+            length_rule = f"长度可自由发挥，最长 {limit} 字符 (Premium 长文)，内容要有深度"
+        else:
+            length_rule = f"长度控制在 260-{limit} 字符之间 (内容要有深度, 超出 {limit} 会自动拆成推文串)"
+
+        parts.append(f"""
 创作要求：
 1. 严格遵循上述人格特征和风格
 2. 使用该用户的常用词汇和表达方式
 3. 保持语气、幽默感和正式度一致
-4. 长度控制在 260-500 字符之间 (内容要有深度, 超出 280 会自动拆成推文串)
+4. {length_rule}
 5. 如果该用户常用 emoji，请自然地使用
 6. 内容要有价值，不要空洞无物
 7. 推文要像真人发的，不要像广告或机器人
@@ -301,11 +307,14 @@ class ContentGenerator:
         return ""
 
     @staticmethod
-    def split_thread(text: str, max_len: int = 270) -> list[str]:
+    def split_thread(text: str, max_len: Optional[int] = None) -> list[str]:
         """将长文本按句子边界拆分为推文串
 
         每段 ≤ max_len，优先在句号/换行处断开，保留完整语义。
+        max_len 默认取 config.thread_chunk_chars (Premium 25000 / 普通 270)。
         """
+        if max_len is None:
+            max_len = config.thread_chunk_chars
         if len(text) <= max_len:
             return [text]
 

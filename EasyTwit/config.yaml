@@ -6,6 +6,7 @@
 # OAuth 1.0a 凭证在 .env 中配置
 x:
   timeout: 30
+  premium: true               # 是否 X Premium (true=单条推文上限 25000 字符, false=280)
 
 # ── Anthropic (Claude) ────────────────────────────────────
 # Base URL & API key from .env. Backup is used if primary fails.
@@ -22,7 +23,7 @@ anthropic:
 # 生图提供商, 按优先级从高到低依次尝试 (失败自动切换下一个)
 # type: gemini = Gemini generateContent 协议 / openai = Chat Completions 协议
 image:
-  enabled: false
+  enabled: true
   output_dir: ./data/images
   providers:
     - type: gemini              # 优先级 1
