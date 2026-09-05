@@ -26,17 +26,12 @@ image:
   enabled: true
   output_dir: ./data/images
   providers:
-    - type: gemini              # 优先级 1
+    - type: gemini              # 优先级 1 (Gemini generateContent 协议)
       model: nano-banana-2
       base_urls:
         - https://autorouter.net  # 站点优先级最高
         - https://autorouter.io
-    - type: gemini              # 优先级 2
-      model: gemini-3.1-flash-image-preview
-      base_urls:
-        - https://autorouter.net
-        - https://autorouter.io
-    - type: openai              # 优先级 3 (Chat Completions)
+    - type: openai              # 优先级 2 (Images 生成接口 /images/generations)
       model: gpt-image-2
       base_urls:
         - https://autorouter.net

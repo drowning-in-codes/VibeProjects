@@ -190,7 +190,10 @@ class ImageManager:
     # ═══════════════════════════════════════════════════════════════
 
     async def _try_openai(self, model: str, base_urls: list, prompt: str) -> Optional[str]:
-        """OpenAI (Chat Completions) 协议生图，按 base_urls 优先级依次尝试"""
+        """OpenAI (Images 生成) 协议生图，按 base_urls 优先级依次尝试。
+
+        走 /images/generations 接口 (DALL-E 风格)，返回 b64_json 或 url。
+        """
         if not self.openai_key:
             return None
         for base in base_urls:
@@ -199,23 +202,32 @@ class ImageManager:
                 self._ensure_openai_base(base),
             )
             try:
-                completion = client.chat.completions.create(
+                resp = client.images.generate(
                     model=model,
-                    messages=[{"role": "user", "content": prompt}],
+                    prompt=prompt,
+                    n=1,
+                    size="1024x1024",
                 )
-                content = completion.choices[0].message.content
-                if not content:
-                    logger.warning(f"OpenAI 返回空内容 [{model}@{base}]")
+                img = resp.data[0] if resp.data else None
+                if img is None:
+                    logger.warning(f"OpenAI 返回空结果 [{model}@{base}]")
                     continue
 
-                image_url = self._extract_url_from_text(content)
-                if image_url:
-                    image_path = await self._download_image(image_url)
+                b64 = getattr(img, 'b64_json', None)
+                if b64:
+                    image_path = self._save_base64_image(b64, 'image/png')
                     if image_path:
                         logger.info(f"OpenAI 图片生成成功 ({model}@{base}) → {image_path}")
                         return image_path
-                else:
-                    logger.warning(f"OpenAI 响应中未找到图片 URL [{model}@{base}]")
+
+                url = getattr(img, 'url', None)
+                if url:
+                    image_path = await self._download_image(url)
+                    if image_path:
+                        logger.info(f"OpenAI 图片生成成功 ({model}@{base}) → {image_path}")
+                        return image_path
+
+                logger.warning(f"OpenAI 响应中未找到图片数据 [{model}@{base}]")
 
             except Exception as e:
                 logger.warning(
