@@ -169,6 +169,8 @@ scheduler:
   run_immediately: true         # 启动时立即执行一次
   post_cron: "0 */4 * * *"     # 定时频率
   distill_cron: "0 0 */14 * *" # 蒸馏频率 (每两周)
+  refollow_cron: "0 0 * * 1"  # easy 模式每周一回关检查
+  refollow_limit: 20            # 每次最多回关人数
   jitter_minutes: 30           # 时间扰动 ±30min
   max_posts_per_day: [1, 3]    # 每天随机在此范围内取值
   scrape_limit: 5
@@ -345,7 +347,7 @@ scheduler:
 
 ```bash
 python -m src run                 # 完整 pipeline: 爬取→蒸馏→发帖
-python -m src run --easy          # 轻量模式: 随机人格→发帖 (不爬取不蒸馏)
+python -m src run --easy          # 轻量模式: 随机人格→发帖，并按 refollow_cron 回关粉丝
 python -m src run --easy --now    # 立即测试轻量模式
 python -m src run --cron "*/30 * * * *"  # 自定义频率
 ```

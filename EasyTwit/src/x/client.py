@@ -7,6 +7,7 @@ from pathlib import Path
 from loguru import logger
 from xdk import Client as XdkClient
 from xdk.oauth1_auth import OAuth1
+from xdk.users.models import FollowUserRequest
 try:
     from xdk.posts.models import CreateRequest,CreateResponse
 except ImportError:
@@ -235,7 +236,9 @@ class XClient:
     # 社交图谱
     # ═══════════════════════════════════════════════════════════════
 
-    def following(self, count: int = 5) -> List[Dict[str, Any]]:
+    def following(
+        self, count: Optional[int] = 5, *, strict: bool = False
+    ) -> List[Dict[str, Any]]:
         """获取关注列表 (需要用户 ID, 不是 'me')"""
         self._require()
         try:
@@ -248,18 +251,78 @@ class XClient:
 
             results = []
             for page in self._client.users.get_following(
-                    user_id, max_results=min(count, 100)):
+                    user_id,
+                    max_results=min(count, 100) if count is not None else 100):
                 data = _unwrap(page)
                 users = data.get('data', data) if isinstance(data, dict) else data
                 if isinstance(users, list):
                     results.extend(users)
-                    if len(results) >= count:
+                    if count is not None and len(results) >= count:
                         break
             logger.info(f"关注列表: {len(results)} 个用户")
-            return results[:count]
+            return results[:count] if count is not None else results
         except Exception as e:
+            _check_fatal(e, "获取关注列表")
             logger.error(f"获取关注列表失败: {e}")
+            if strict:
+                raise
             return []
+
+    def followers(
+        self, count: Optional[int] = 1000, *, strict: bool = False
+    ) -> List[Dict[str, Any]]:
+        """获取关注本账号的用户，按 XDK 页迭代器分页读取。"""
+        self._require()
+        try:
+            me = self.whoami()
+            user_id = me.get('id', '') if me else None
+            if not user_id:
+                logger.error("无法获取自己的用户 ID")
+                return []
+
+            results = []
+            for page in self._client.users.get_followers(
+                    user_id,
+                    max_results=min(count, 1000) if count is not None else 1000):
+                data = _unwrap(page)
+                users = data.get('data', data) if isinstance(data, dict) else data
+                if isinstance(users, list):
+                    results.extend(users)
+                    if count is not None and len(results) >= count:
+                        break
+            logger.info(f"粉丝列表: {len(results)} 个用户")
+            return results[:count] if count is not None else results
+        except Exception as e:
+            _check_fatal(e, "获取粉丝列表")
+            logger.error(f"获取粉丝列表失败: {e}")
+            if strict:
+                raise
+            return []
+
+    def follow(self, target_user_id: str) -> bool:
+        """关注指定用户。"""
+        self._require()
+        try:
+            me = self.whoami()
+            user_id = me.get('id', '') if me else None
+            if not user_id:
+                logger.error("无法获取自己的用户 ID")
+                return False
+            response = self._client.users.follow_user(
+                user_id,
+                body=FollowUserRequest(target_user_id=str(target_user_id)),
+            )
+            data = _unwrap(response) or {}
+            followed = data.get('following', False)
+            if followed:
+                logger.success(f"已回关用户 ID {target_user_id}")
+            else:
+                logger.warning(f"未能回关用户 ID {target_user_id}: {data}")
+            return bool(followed)
+        except Exception as e:
+            _check_fatal(e, f"回关用户 {target_user_id}")
+            logger.error(f"回关用户 {target_user_id} 失败: {e}")
+            return False
 
     def timeline_users(self, count: int = 5) -> List[str]:
         """从时间线推文中提取活跃用户"""

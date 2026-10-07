@@ -547,6 +547,44 @@ async def cmd_easy():
         logger.warning("发帖跳过 (达限额或失败)")
 
 
+async def cmd_refollow():
+    """Follow back followers that are not already followed."""
+    limit = config.refollow_limit
+    if limit <= 0:
+        logger.info("Refollow skipped: scheduler.refollow_limit is 0")
+        return
+
+    client = XClient()
+    if not client.ready:
+        logger.warning("Refollow skipped: X OAuth 1.0a is not configured")
+        return
+
+    me = client.whoami() or {}
+    own_id = str(me.get('id', ''))
+    followers = client.followers(count=None, strict=True)
+    following = client.following(count=None, strict=True)
+    following_ids = {str(user.get('id')) for user in following if user.get('id')}
+    candidates = [
+        user for user in followers
+        if user.get('id')
+        and str(user.get('id')) != own_id
+        and str(user.get('id')) not in following_ids
+    ][:limit]
+
+    followed = 0
+    failed = 0
+    for user in candidates:
+        if client.follow(str(user['id'])):
+            followed += 1
+            following_ids.add(str(user['id']))
+        else:
+            failed += 1
+    logger.info(
+        f"Refollow complete: followers={len(followers)}, candidates={len(candidates)}, "
+        f"followed={followed}, failed={failed}"
+    )
+
+
 async def cmd_run(cron: str = None, now: bool = False, easy: bool = False):
     """启动定时调度 (支持双任务: 发帖 + 定期蒸馏)"""
     db = Database()
@@ -561,6 +599,13 @@ async def cmd_run(cron: str = None, now: bool = False, easy: bool = False):
         async def post_task():
             await cmd_easy()
         post_name = "easy (随机人格→发帖)"
+        async def refollow_task():
+            await cmd_refollow()
+        scheduler.add_task(
+            name="refollow (回关粉丝)",
+            cron_expr=config.refollow_cron,
+            callback=refollow_task,
+        )
     else:
         async def post_task():
             await cmd_pipeline()

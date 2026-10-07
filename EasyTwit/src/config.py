@@ -247,6 +247,16 @@ class Config:
         return self.get('scheduler.distill_cron', '0 0 */14 * *')
 
     @property
+    def refollow_cron(self) -> str:
+        """Cron for following back users in easy mode."""
+        return self.get('scheduler.refollow_cron', '0 0 * * 1')
+
+    @property
+    def refollow_limit(self) -> int:
+        """Maximum follow attempts per refollow run."""
+        return max(0, int(self.get('scheduler.refollow_limit', 20)))
+
+    @property
     def max_posts_per_day(self) -> int:
         """每日最大发帖数 (支持范围 [min, max] 或固定值)"""
         import random
