@@ -57,18 +57,18 @@ async function handleMessage(message, sender) {
     }
   }
 
+  function validateFollowedAccountInput(account) {
+    if (!account || typeof account !== "object" ||
+        !/^[A-Za-z0-9._~-]{1,128}$/.test(String(account.fakeid || ""))) {
+      throw new WereadError("INPUT", "无效的公众号标识。请重新搜索公众号。");
+    }
+  }
+
   function validateOfficialArticleInput(message) {
     const account = message.account;
     if (!account || typeof account !== "object" ||
         !/^[A-Za-z0-9._~-]{1,128}$/.test(String(account.fakeid || ""))) {
       throw new WereadError("INPUT", "无效的公众号标识。请重新搜索公众号后台。");
-    }
-
-    function validateFollowedAccountInput(account) {
-      if (!account || typeof account !== "object" ||
-          !/^[A-Za-z0-9._~-]{1,128}$/.test(String(account.fakeid || ""))) {
-        throw new WereadError("INPUT", "无效的公众号标识。请重新搜索公众号。");
-      }
     }
     if (!Number.isInteger(message.offset) || message.offset < 0 || message.offset > 100000) {
       throw new WereadError("INPUT", "无效的文章分页位置。");
