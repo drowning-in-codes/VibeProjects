@@ -211,7 +211,14 @@
     retryButton.type = "button";
     retryButton.textContent = "重试";
     retryButton.addEventListener("click", retry);
-    card.append(title, message, retryButton);
+    const loginButton = document.createElement("button");
+    loginButton.type = "button";
+    loginButton.className = "login";
+    loginButton.textContent = "前往微信读书登录";
+    loginButton.addEventListener("click", () => {
+      window.open("https://weread.qq.com/", "_blank", "noopener,noreferrer");
+    });
+    card.append(title, message, loginButton, retryButton);
     content.append(card);
   }
 

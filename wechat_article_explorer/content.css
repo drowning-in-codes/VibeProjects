@@ -83,5 +83,6 @@
 #wechat-article-explorer-root .status, #wechat-article-explorer-root .empty, #wechat-article-explorer-root .error { margin-top: 28px; color: #64748b; line-height: 1.6; text-align: center; }
 #wechat-article-explorer-root .empty p, #wechat-article-explorer-root .error p { margin: 8px 0 0; font-size: 13px; }
 #wechat-article-explorer-root .error button, #wechat-article-explorer-root .load-more { margin-top: 16px; border: 0; border-radius: 8px; padding: 9px 15px; background: #07c160; color: #fff; cursor: pointer; font-size: 13px; }
+#wechat-article-explorer-root .error .login { margin-right: 8px; background: #fff; color: #078a47; box-shadow: inset 0 0 0 1px #07c160; }
 #wechat-article-explorer-root .load-more { display: block; margin-right: auto; margin-left: auto; }
 #wechat-article-explorer-root .current-context { margin: 0 0 12px; border-radius: 8px; padding: 9px 10px; background: #f0fdf4; color: #15803d; font-size: 12px; }
