@@ -69,7 +69,7 @@
       sendMessage({ type: "getOfficialAccounts" }).catch(() => []),
       sendMessage({ type: "getFollowedOfficialAccounts" }).catch(() => [])
     ]);
-    content.replaceChildren(heading("公众号后台搜索", "本地阅读清单"));
+    content.replaceChildren(heading("公众号后台搜索", "官方页面"));
     const hint = document.createElement("p");
     hint.className = "history-hint";
     hint.textContent = "这里管理扩展本地关注的公众号，不等同于微信官方关注关系；搜索和读取均需手动触发。";
@@ -120,7 +120,7 @@
     state.followedOfficialAccounts.forEach((account) => {
       list.append(createOfficialAccountEntry(account));
     });
-    content.append(heading("本地关注清单", `${state.followedOfficialAccounts.length} 个`), list);
+    content.append(heading("已关注公众号", `${state.followedOfficialAccounts.length} 个`), list);
   }
 
   function createOfficialAccountEntry(account) {
@@ -135,8 +135,7 @@
     const followButton = document.createElement("button");
     followButton.type = "button";
     followButton.className = "follow";
-    followButton.textContent = followed ? "已加入" : "加入清单";
-    followButton.title = followed ? "从扩展本地关注清单移除" : "加入扩展本地关注清单";
+    followButton.textContent = followed ? "已关注" : "关注";
     followButton.setAttribute("aria-pressed", String(followed));
     followButton.addEventListener("click", async () => {
       followButton.disabled = true;
