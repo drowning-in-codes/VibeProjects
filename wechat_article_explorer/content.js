@@ -2,8 +2,6 @@
   const root = document.createElement("div");
   root.id = "wechat-article-explorer-root";
   const shadow = root.attachShadow({ mode: "open" });
-  const pageUrl = window.location.href;
-
   const stylesheet = document.createElement("link");
   stylesheet.rel = "stylesheet";
   stylesheet.href = chrome.runtime.getURL("content.css");
@@ -31,7 +29,14 @@
   const panel = shadow.querySelector(".panel");
   const content = shadow.querySelector(".content");
   const closeButton = shadow.querySelector(".close");
-  const state = { publications: null, selectedPublication: null, articles: [], nextOffset: null };
+  const state = {
+    publications: null,
+    selectedPublication: null,
+    articles: [],
+    nextOffset: null,
+    articleRequestId: 0,
+    articlesLoading: false
+  };
 
   trigger.addEventListener("click", () => openPanel());
   closeButton.addEventListener("click", closePanel);
@@ -61,13 +66,18 @@
   }
 
   function renderPublicationList() {
+    cancelArticleRequest();
     const publications = state.publications ?? [];
     if (publications.length === 0) {
-      renderEmpty("没有找到已关注的公众号", "请先在微信读书 App 中关注公众号，然后刷新后重试。");
+      renderEmpty("没有找到已关注的公众号", "可在微信读书中手动搜索或管理公众号，完成后返回这里重试。", true);
       return;
     }
 
-    content.replaceChildren(createBackButton(false), heading("已关注的公众号", `${publications.length} 个`));
+    content.replaceChildren(
+      createBackButton(false),
+      heading("已关注的公众号", `${publications.length} 个`),
+      createManageEntry()
+    );
     const list = document.createElement("div");
     list.className = "publication-list";
     publications.forEach((publication) => {
@@ -82,6 +92,9 @@
   }
 
   async function loadArticles(publication, reset) {
+    if (state.articlesLoading) return;
+    state.articlesLoading = true;
+    const requestId = ++state.articleRequestId;
     if (reset) {
       state.selectedPublication = publication;
       state.articles = [];
@@ -95,12 +108,21 @@
         bookId: publication.id,
         offset: state.nextOffset ?? 0
       });
+      if (requestId !== state.articleRequestId) return;
       state.articles.push(...result.articles);
       state.nextOffset = result.nextOffset;
       renderArticleList();
     } catch (error) {
+      if (requestId !== state.articleRequestId) return;
       renderError(error, () => loadArticles(publication, reset), true);
+    } finally {
+      if (requestId === state.articleRequestId) state.articlesLoading = false;
     }
+  }
+
+  function cancelArticleRequest() {
+    state.articleRequestId += 1;
+    state.articlesLoading = false;
   }
 
   function renderArticleList() {
@@ -188,7 +210,7 @@
     content.append(status);
   }
 
-  function renderEmpty(title, message) {
+  function renderEmpty(title, message, showManageEntry = false) {
     const empty = document.createElement("div");
     empty.className = "empty";
     const titleElement = document.createElement("h2");
@@ -196,7 +218,35 @@
     const messageElement = document.createElement("p");
     messageElement.textContent = message;
     empty.append(titleElement, messageElement);
+    if (showManageEntry) empty.append(createManageEntry());
     content.append(empty);
+  }
+
+  function createManageEntry() {
+    const wrapper = document.createElement("div");
+    wrapper.className = "manage-entry";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "manage";
+    button.textContent = "在微信读书中搜索或管理公众号";
+    button.addEventListener("click", () => {
+      window.open("https://weread.qq.com/web/shelf", "_blank", "noopener,noreferrer");
+    });
+
+    const refreshButton = document.createElement("button");
+    refreshButton.type = "button";
+    refreshButton.className = "refresh";
+    refreshButton.textContent = "刷新已关注列表";
+    refreshButton.addEventListener("click", () => {
+      state.publications = null;
+      loadPublications();
+    });
+
+    const hint = document.createElement("p");
+    hint.textContent = "将打开微信读书官方页面；搜索、关注和取消关注均由你手动完成。";
+    wrapper.append(button, refreshButton, hint);
+    return wrapper;
   }
 
   function renderError(error, retry, showBack = false) {
@@ -223,7 +273,8 @@
   }
 
   function isCurrentArticle() {
-    return location.hostname === "mp.weixin.qq.com" && pageUrl.includes("/s");
+    return location.hostname === "mp.weixin.qq.com" &&
+      (location.pathname === "/s" || location.pathname.startsWith("/s/"));
   }
 
   function formatTime(timestamp) {

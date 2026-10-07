@@ -113,45 +113,144 @@ class Config:
         """
         return self.max_post_chars if self.is_premium else 270
 
-    # ── Anthropic (Claude) ────────────────────────────────
+    # ── AI model ──────────────────────────────────────────
+
+    @property
+    def ai_provider(self) -> str:
+        """AI protocol: anthropic or openai-compatible."""
+        provider = os.getenv('AI_PROVIDER') or self.get(
+            'ai.provider', 'anthropic'
+        )
+        return self._validate_ai_provider(provider)
+
+    @property
+    def ai_backup_provider(self) -> str:
+        """Backup AI protocol; defaults to the primary provider."""
+        provider = os.getenv('AI_BACKUP_PROVIDER') or self.get(
+            'ai.backup_provider', self.ai_provider
+        )
+        return self._validate_ai_provider(provider)
+
+    @staticmethod
+    def _validate_ai_provider(provider: str) -> str:
+        provider = provider.strip().lower()
+        if provider not in {'anthropic', 'openai'}:
+            raise ValueError(
+                f"不支持的 AI provider: {provider}，可选值为 anthropic 或 openai"
+            )
+        return provider
+
+    @property
+    def model_api_key(self) -> str:
+        """Generic model API key for the selected provider."""
+        key = (
+            os.getenv('AI_API_KEY')
+            or os.getenv('MODEL_API_KEY')
+            or os.getenv('ANTHROPIC_API_KEY', '')
+        )
+        if not key:
+            raise ValueError("请在 .env 文件中设置 AI_API_KEY")
+        return key
+
+    @property
+    def model_base_url(self) -> Optional[str]:
+        return (
+            os.getenv('AI_BASE_URL')
+            or os.getenv('MODEL_BASE_URL')
+            or os.getenv('ANTHROPIC_BASE_URL')
+        )
+
+    @property
+    def model_backup_api_key(self) -> Optional[str]:
+        return (
+            os.getenv('AI_BACKUP_API_KEY')
+            or os.getenv('MODEL_BACKUP_API_KEY')
+            or os.getenv('ANTHROPIC_BACKUP_API_KEY')
+        )
+
+    @property
+    def model_backup_base_url(self) -> Optional[str]:
+        return (
+            os.getenv('AI_BACKUP_BASE_URL')
+            or os.getenv('MODEL_BACKUP_BASE_URL')
+            or os.getenv('ANTHROPIC_BACKUP_BASE_URL')
+        )
+
+    @property
+    def ai_model(self) -> str:
+        return self.get('ai.model', self.get('anthropic.model', 'gemini-2.5-pro'))
+
+    @property
+    def ai_max_tokens(self) -> int:
+        return self.get('ai.max_tokens', self.get('anthropic.max_tokens', 2000))
+
+    @property
+    def ai_generation_retries(self) -> int:
+        return self.get(
+            'ai.generation_retries',
+            self.get('anthropic.generation_retries', 3),
+        )
+
+    @property
+    def ai_system_prompt(self) -> str:
+        return self.get('ai.system_prompt', self.get('anthropic.system_prompt', ''))
 
     @property
     def anthropic_api_key(self) -> str:
-        """Anthropic API Key"""
-        key = os.getenv('ANTHROPIC_API_KEY', '')
+        """Anthropic Messages API key."""
+        key = (
+            os.getenv('AI_API_KEY')
+            or os.getenv('ANTHROPIC_API_KEY')
+            or os.getenv('MODEL_API_KEY', '')
+        )
         if not key:
-            raise ValueError("请在 .env 文件中设置 ANTHROPIC_API_KEY")
+            raise ValueError("请在 .env 文件中设置 AI_API_KEY")
         return key
 
     @property
     def anthropic_base_url(self) -> Optional[str]:
-        """Anthropic API Base URL (可选)"""
-        return os.getenv('ANTHROPIC_BASE_URL', None)
+        """Anthropic Messages API base URL."""
+        return (
+            os.getenv('AI_BASE_URL')
+            or os.getenv('ANTHROPIC_BASE_URL')
+            or os.getenv('MODEL_BASE_URL')
+        )
 
     @property
     def anthropic_backup_api_key(self) -> Optional[str]:
-        """Anthropic 备用 API Key"""
-        return os.getenv('ANTHROPIC_BACKUP_API_KEY', None)
+        """Backup Anthropic Messages API key."""
+        return (
+            os.getenv('AI_BACKUP_API_KEY')
+            or os.getenv('ANTHROPIC_BACKUP_API_KEY')
+            or os.getenv('MODEL_BACKUP_API_KEY')
+        )
 
     @property
     def anthropic_backup_base_url(self) -> Optional[str]:
-        """Anthropic 备用 API Base URL"""
-        return os.getenv('ANTHROPIC_BACKUP_BASE_URL', None)
+        """Backup Anthropic Messages API base URL."""
+        return (
+            os.getenv('AI_BACKUP_BASE_URL')
+            or os.getenv('ANTHROPIC_BACKUP_BASE_URL')
+            or os.getenv('MODEL_BACKUP_BASE_URL')
+        )
 
     @property
     def anthropic_model(self) -> str:
-        """Anthropic 模型名称"""
-        return self.get('anthropic.model', 'claude-sonnet-4-6')
+        """Legacy alias for the configured model name."""
+        return self.ai_model
 
     @property
     def anthropic_max_tokens(self) -> int:
-        """Anthropic 最大 tokens"""
-        return self.get('anthropic.max_tokens', 2000)
+        """Legacy alias for the configured token limit."""
+        return self.ai_max_tokens
 
     @property
     def prompt_template(self) -> str:
         """预备 prompt 模板路径 (prompts/*.md 或空)"""
-        return self.get('anthropic.prompt_template', '')
+        return self.get(
+            'ai.prompt_template',
+            self.get('anthropic.prompt_template', ''),
+        )
 
     # ── 生图提供商 (按优先级) ─────────────────────────────
 

@@ -1,6 +1,7 @@
 """
 人格蒸馏与自定义生成模块
-使用 Claude API 分析推文风格并提取人格特征，支持自定义关键词/描述生成人格
+使用 Anthropic 或 OpenAI-compatible API 分析推文风格并提取人格特征，
+支持自定义关键词/描述生成人格
 """
 import json
 import yaml
@@ -8,11 +9,10 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from loguru import logger
-from anthropic import Anthropic
-
 from ..config import config
 from ..storage.models import Tweet, Persona
 from ..storage.database import Database
+from .chat import complete_chat, create_chat_client
 
 
 class PersonaManager:
@@ -23,35 +23,33 @@ class PersonaManager:
 
         http_client = config.get_httpx_client()
 
-        # 主 Anthropic 客户端
-        self.client = self._make_client(
-            config.anthropic_api_key,
-            config.anthropic_base_url,
+        primary_provider = config.ai_provider
+        self.client = create_chat_client(
+            config.anthropic_api_key
+            if primary_provider == "anthropic" else config.model_api_key,
+            config.anthropic_base_url
+            if primary_provider == "anthropic" else config.model_base_url,
             http_client,
+            primary_provider,
         )
 
-        # 备用 Anthropic 客户端
+        backup_provider = config.ai_backup_provider
         self.backup_client = None
-        if config.anthropic_backup_api_key:
-            self.backup_client = self._make_client(
-                config.anthropic_backup_api_key,
-                config.anthropic_backup_base_url,
+        backup_key = (
+            config.anthropic_backup_api_key
+            if backup_provider == "anthropic"
+            else config.model_backup_api_key
+        )
+        if backup_key:
+            self.backup_client = create_chat_client(
+                backup_key,
+                config.anthropic_backup_base_url
+                if backup_provider == "anthropic"
+                else config.model_backup_base_url,
                 http_client,
+                backup_provider,
             )
-            logger.info(f"已配置备用 Anthropic API: {config.anthropic_backup_base_url or 'default'}")
-
-    @staticmethod
-    def _make_client(api_key: str, base_url: Optional[str] = None,
-                     http_client=None) -> Optional[Anthropic]:
-        """创建 Anthropic 客户端实例"""
-        client_kwargs: dict = {"api_key": api_key}
-        if base_url:
-            client_kwargs["base_url"] = base_url
-            logger.info(f"Anthropic endpoint: {base_url}")
-        if http_client:
-            client_kwargs["http_client"] = http_client
-            logger.info(f"Anthropic 通过代理连接: {config.http_proxy}")
-        return Anthropic(**client_kwargs)
+            logger.info(f"已配置备用模型 API ({backup_provider})")
 
     # ═══════════════════════════════════════════════════════════════
     # 人格蒸馏（从推文分析）
@@ -81,7 +79,7 @@ class PersonaManager:
 
         # 构建分析 prompt
         tweet_texts = [t.content for t in tweets]
-        persona_data = await self._analyze_with_claude(username, tweet_texts)
+        persona_data = await self._analyze_with_model(username, tweet_texts)
 
         # 创建 Persona
         persona = Persona(
@@ -156,7 +154,7 @@ class PersonaManager:
 4. 确保生成的角色有鲜明的表达风格
 """
 
-        persona_data = await self._call_claude(prompt)
+        persona_data = await self._call_model(prompt)
         persona_data['quintessence'] = persona_data.get('quintessence', description)
 
         persona = Persona(
@@ -273,46 +271,59 @@ class PersonaManager:
     # 内部方法
     # ═══════════════════════════════════════════════════════════════
 
-    async def _analyze_with_claude(self, username: str,
-                                   tweets: List[str]) -> Dict[str, Any]:
-        """使用 Claude API 分析推文（带主备切换）"""
+    async def _analyze_with_model(self, username: str,
+                                  tweets: List[str]) -> Dict[str, Any]:
+        """使用模型 API 分析推文（带主备切换）"""
         prompt = self._build_analysis_prompt(username, tweets)
 
-        def call(client):
-            message = client.messages.create(
-                model=config.anthropic_model,
-                max_tokens=config.anthropic_max_tokens,
-                messages=[{"role": "user", "content": prompt}],
+        primary_provider = config.ai_provider
+        backup_provider = config.ai_backup_provider
+
+        def call(client, provider):
+            response_text = complete_chat(
+                client,
+                model=config.ai_model,
+                max_tokens=config.ai_max_tokens,
+                prompt=prompt,
+                system_prompt=config.ai_system_prompt,
+                provider=provider,
             )
-            response_text = self._extract_text(message)
             result = self._parse_json_safe(response_text)
             logger.info(
-                f"Claude 分析完成，提取了 {len(result.get('vocabulary', []))} 个高频词"
+                f"模型分析完成，提取了 {len(result.get('vocabulary', []))} 个高频词"
             )
             return result
 
         from .fallback import try_with_fallback
         return await try_with_fallback(
-            primary_fn=lambda: call(self.client),
-            backup_fn=lambda: call(self.backup_client) if self.backup_client else None,
-            label="Claude",
+            primary_fn=lambda: call(self.client, primary_provider),
+            backup_fn=lambda: call(self.backup_client, backup_provider)
+            if self.backup_client else None,
+            label="Model",
         )
 
-    async def _call_claude(self, prompt: str) -> Dict[str, Any]:
-        """调用 Claude API（带主备切换）"""
-        def call(client):
-            message = client.messages.create(
-                model=config.anthropic_model,
-                max_tokens=config.anthropic_max_tokens,
-                messages=[{"role": "user", "content": prompt}],
+    async def _call_model(self, prompt: str) -> Dict[str, Any]:
+        """调用模型 API（带主备切换）"""
+        primary_provider = config.ai_provider
+        backup_provider = config.ai_backup_provider
+
+        def call(client, provider):
+            response_text = complete_chat(
+                client,
+                model=config.ai_model,
+                max_tokens=config.ai_max_tokens,
+                prompt=prompt,
+                system_prompt=config.ai_system_prompt,
+                provider=provider,
             )
-            return self._parse_json_safe(self._extract_text(message))
+            return self._parse_json_safe(response_text)
 
         from .fallback import try_with_fallback
         return await try_with_fallback(
-            primary_fn=lambda: call(self.client),
-            backup_fn=lambda: call(self.backup_client) if self.backup_client else None,
-            label="Claude",
+            primary_fn=lambda: call(self.client, primary_provider),
+            backup_fn=lambda: call(self.backup_client, backup_provider)
+            if self.backup_client else None,
+            label="Model",
         )
 
     def _build_analysis_prompt(self, username: str,
@@ -349,16 +360,6 @@ class PersonaManager:
 4. 注意特殊的表达方式、口头禅、emoji 使用习惯
 5. 推文可能包含 #hashtag、@mention、链接等元素，请用原始推文内容分析
 """
-
-    @staticmethod
-    def _extract_text(message) -> str:
-        """从 Anthropic 响应中提取文本（兼容 ThinkingBlock）"""
-        for block in message.content:
-            if hasattr(block, 'text'):
-                return block.text
-            if hasattr(block, 'thinking'):
-                continue  # 跳过 thinking block
-        return ""
 
     @staticmethod
     def _parse_json_safe(text: str) -> Dict[str, Any]:

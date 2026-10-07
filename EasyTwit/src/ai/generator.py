@@ -1,14 +1,13 @@
 """
 内容生成模块
-基于人格特征使用 Claude API 生成推文
+基于人格特征使用 Anthropic 或 OpenAI-compatible API 生成推文
 """
 from typing import Optional, Tuple, List
 from loguru import logger
-from anthropic import Anthropic
-
 from ..config import config
 from ..storage.models import Persona, Tweet
 from ..storage.database import Database
+from .chat import complete_chat, create_chat_client
 from .image import ImageManager
 
 
@@ -20,37 +19,38 @@ class ContentGenerator:
 
         http_client = config.get_httpx_client()
 
-        # 主 Anthropic 客户端
-        self.client = self._make_client(
-            config.anthropic_api_key,
-            config.anthropic_base_url,
+        primary_provider = config.ai_provider
+        self.primary_provider = primary_provider
+        self.client = create_chat_client(
+            config.anthropic_api_key
+            if primary_provider == "anthropic" else config.model_api_key,
+            config.anthropic_base_url
+            if primary_provider == "anthropic" else config.model_base_url,
             http_client,
+            primary_provider,
         )
 
-        # 备用 Anthropic 客户端
+        backup_provider = config.ai_backup_provider
+        self.backup_provider = backup_provider
         self.backup_client = None
-        if config.anthropic_backup_api_key:
-            self.backup_client = self._make_client(
-                config.anthropic_backup_api_key,
-                config.anthropic_backup_base_url,
+        backup_key = (
+            config.anthropic_backup_api_key
+            if backup_provider == "anthropic"
+            else config.model_backup_api_key
+        )
+        if backup_key:
+            self.backup_client = create_chat_client(
+                backup_key,
+                config.anthropic_backup_base_url
+                if backup_provider == "anthropic"
+                else config.model_backup_base_url,
                 http_client,
+                backup_provider,
             )
-            logger.info(f"已配置备用 Anthropic API: {config.anthropic_backup_base_url or 'default'}")
+            logger.info(f"已配置备用模型 API ({backup_provider})")
 
         # 图片管理器
         self.image_manager = ImageManager() if config.image_enabled else None
-
-    @staticmethod
-    def _make_client(api_key: str, base_url: Optional[str] = None,
-                     http_client=None) -> Optional[Anthropic]:
-        """创建 Anthropic 客户端实例"""
-        client_kwargs: dict = {"api_key": api_key}
-        if base_url:
-            client_kwargs["base_url"] = base_url
-            logger.info(f"Anthropic endpoint: {base_url}")
-        if http_client:
-            client_kwargs["http_client"] = http_client
-        return Anthropic(**client_kwargs)
 
     def should_generate_image(self, tweet_content: str) -> bool:
         """智能判断推文是否需要配图"""
@@ -139,29 +139,38 @@ class ContentGenerator:
 
         prompt = self._build_generation_prompt(persona, topic, reference_tweets,
                                                external_context=external_context)
-        max_retries = config.get('anthropic.generation_retries', 3)
+        max_retries = config.ai_generation_retries
 
         try:
             from .fallback import try_with_fallback
 
             def call(client):
-                kwargs = dict(
-                    model=config.anthropic_model,
+                return complete_chat(
+                    client,
+                    model=config.ai_model,
+                    prompt=prompt,
                     max_tokens=500,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                system = config.get('anthropic.system_prompt', '')
-                if system:
-                    kwargs["system"] = system
-                message = client.messages.create(**kwargs)
-                return self._extract_text(message).strip()
+                    system_prompt=config.ai_system_prompt,
+                    provider=self.primary_provider,
+                ).strip()
+
+            def call_backup(client):
+                return complete_chat(
+                    client,
+                    model=config.ai_model,
+                    prompt=prompt,
+                    max_tokens=500,
+                    system_prompt=config.ai_system_prompt,
+                    provider=self.backup_provider,
+                ).strip()
 
             tweet_content = ""
             for attempt in range(1, max_retries + 1):
                 tweet_content = await try_with_fallback(
                     primary_fn=lambda: call(self.client),
-                    backup_fn=lambda: call(self.backup_client) if self.backup_client else None,
-                    label="Claude",
+                    backup_fn=lambda: call_backup(self.backup_client)
+                    if self.backup_client else None,
+                    label="Model",
                 )
                 if tweet_content and len(tweet_content) >= 10:
                     break
@@ -294,16 +303,6 @@ class ContentGenerator:
         if path.exists():
             return path.read_text(encoding='utf-8')
         logger.warning(f"模板文件不存在: {template_path}")
-        return ""
-
-    @staticmethod
-    def _extract_text(message) -> str:
-        """从 Anthropic 响应中提取文本（兼容 ThinkingBlock）"""
-        for block in message.content:
-            if hasattr(block, 'text'):
-                return block.text
-            if hasattr(block, 'thinking'):
-                continue
         return ""
 
     @staticmethod

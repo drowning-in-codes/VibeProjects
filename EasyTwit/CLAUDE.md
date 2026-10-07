@@ -17,8 +17,8 @@ EasyTwit/
 │   │   ├── scraper.py     推文爬取器
 │   │   └── auth.py        OAuth 1.0a 三步认证流程
 │   ├── ai/
-│   │   ├── persona.py     人格蒸馏+自定义生成 (Claude API)
-│   │   ├── generator.py   推文内容生成 (Claude API)
+│   │   ├── persona.py     人格蒸馏+自定义生成 (OpenAI-compatible Chat API)
+│   │   ├── generator.py   推文内容生成 (OpenAI-compatible Chat API)
 │   │   ├── image.py       多提供商生图(Gemini/OpenAI协议)
 │   │   └── fallback.py    API主备切换工具
 │   └── storage/
@@ -33,8 +33,8 @@ EasyTwit/
 ## 核心流程
 
 1. `scrape` — XDK search/user_posts 爬取目标用户推文 → SQLite
-2. `distill` — Claude API 分析推文 → 提取人格(tone/vocabulary/topics/style_metrics)
-3. `generate` — Claude API 基于人格生成推文内容 + 智能配图判断
+2. `distill` — 模型 API 分析推文 → 提取人格(tone/vocabulary/topics/style_metrics)
+3. `generate` — 模型 API 基于人格生成推文内容 + 智能配图判断
 4. `post` — XDK posts.create 发布推文（+ 配图上传）
 5. `run` — Cron定时调度上述流程
 
@@ -163,7 +163,8 @@ image:
 ## API 主备切换
 
 所有 AI/图片 API 支持主备:
-- Anthropic: `ANTHROPIC_BASE_URL` → `ANTHROPIC_BACKUP_BASE_URL`
+- 模型 API: `AI_BASE_URL` → `AI_BACKUP_BASE_URL`
+  （旧的 `ANTHROPIC_*` / `MODEL_*` 变量仍兼容）
 - 图片: Gemini → GPT-Image-2 → OpenAI Backup
 - 切换逻辑: `ai/fallback.py` — `try_with_fallback()`
 

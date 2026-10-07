@@ -1,60 +1,87 @@
 const WEREAD_ORIGIN = "https://weread.qq.com";
 const MP_BOOK_PREFIX = "MP_WXS_";
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !["getPublications", "getArticles"].includes(message.type)) {
     return;
   }
 
-  handleMessage(message)
+  handleMessage(message, sender)
     .then((data) => sendResponse({ ok: true, data }))
     .catch((error) => sendResponse({ ok: false, error: serializeError(error) }));
 
   return true;
 });
 
-async function handleMessage(message) {
+async function handleMessage(message, sender) {
   if (message.type === "getPublications") {
-    const payload = await requestWeread("/web/shelf/sync", { userVid: "", synckey: 0 });
+    const payload = await requestWeread("/web/shelf/sync", { userVid: "", synckey: 0 }, sender);
     return normalizePublications(payload);
   }
 
-  return getArticles(message.bookId, message.offset);
+  return getArticles(message.bookId, message.offset, sender);
 }
 
-async function requestWeread(path, params = {}) {
-  const url = new URL(path, WEREAD_ORIGIN);
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, String(value));
+async function requestWeread(path, params = {}, sender) {
+  const tabId = await findWereadTab(sender);
+  if (tabId) {
+    return requestFromWereadPage(tabId, path, params);
   }
 
-  let response;
+  throw new WereadError(
+    "AUTH",
+    "请先打开微信读书网页并完成登录，然后返回此页面重试。"
+  );
+}
+
+async function findWereadTab(sender) {
+  let senderHost = "";
   try {
-    response = await fetch(url, {
-      credentials: "include",
-      headers: { Accept: "application/json, text/plain, */*" }
+    senderHost = sender?.tab?.url ? new URL(sender.tab.url).hostname : "";
+  } catch {
+    senderHost = "";
+  }
+  if (sender?.tab?.id && senderHost === "weread.qq.com") {
+    return sender.tab.id;
+  }
+
+  const tabs = await chrome.tabs.query({ url: "https://weread.qq.com/*" });
+  return tabs[0]?.id;
+}
+
+async function requestFromWereadPage(tabId, path, params) {
+  let execution;
+  try {
+    execution = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      func: fetchFromWereadPage,
+      args: [path, params]
     });
   } catch (cause) {
     throw new WereadError(
       "NETWORK",
-      "无法连接微信读书。请检查网络后重试。",
+      "无法访问微信读书页面。请刷新微信读书网页后重试。",
       cause
     );
   }
 
-  if (response.status === 401 || response.status === 403) {
-    throw new WereadError("AUTH", "微信读书登录已失效，请打开微信读书网页重新扫码登录。");
-  }
-  if (!response.ok) {
-    throw new WereadError("HTTP", `微信读书接口返回 ${response.status}。`);
+  const result = execution[0]?.result;
+  if (!result) {
+    throw new WereadError("DATA", "微信读书没有返回有效数据。");
   }
 
-  let payload;
-  try {
-    payload = await response.json();
-  } catch (cause) {
-    throw new WereadError("DATA", "微信读书返回了无法识别的数据。", cause);
+  if (result.status === 401 || result.status === 403) {
+    throw new WereadError("AUTH", "微信读书登录已失效，请打开微信读书网页重新扫码登录。");
   }
+  if (!result.ok) {
+    throw new WereadError("HTTP", `微信读书接口返回 ${result.status}。`);
+  }
+  if (result.parseError) {
+    throw new WereadError("DATA", "微信读书返回了无法识别的数据。");
+  }
+
+  const payload = result.payload;
 
   const apiError = payload?.errCode ?? payload?.errcode;
   if (apiError && apiError !== 0) {
@@ -81,12 +108,15 @@ function normalizePublications(payload) {
     .sort((left, right) => left.title.localeCompare(right.title, "zh-CN"));
 }
 
-async function getArticles(bookId, offset = 0) {
+async function getArticles(bookId, offset = 0, sender) {
   if (typeof bookId !== "string" || !bookId.startsWith(MP_BOOK_PREFIX)) {
     throw new WereadError("INPUT", "无效的公众号标识。");
   }
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new WereadError("INPUT", "无效的文章分页位置。");
+  }
 
-  const payload = await requestWeread("/web/mp/articles", { bookId, offset });
+  const payload = await requestWeread("/web/mp/articles", { bookId, offset }, sender);
   const reviews = Array.isArray(payload?.reviews) ? payload.reviews : [];
   const articles = reviews.flatMap((review) =>
     (Array.isArray(review?.subReviews) ? review.subReviews : [])
@@ -131,6 +161,24 @@ function serializeError(error) {
     code: error?.code ?? "UNKNOWN",
     message: error?.message ?? "发生未知错误，请稍后重试。"
   };
+}
+
+async function fetchFromWereadPage(path, params) {
+  const url = new URL(path, location.origin);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, String(value));
+  }
+
+  try {
+    const response = await fetch(url, {
+      credentials: "include",
+      headers: { Accept: "application/json, text/plain, */*" }
+    });
+    const payload = await response.json();
+    return { ok: response.ok, status: response.status, payload };
+  } catch {
+    return { ok: false, status: 0, parseError: true };
+  }
 }
 
 class WereadError extends Error {

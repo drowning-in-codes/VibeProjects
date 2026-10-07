@@ -30,7 +30,12 @@ XDK 文档: https://docs.x.com/xdks/python/reference/modules
 ```bash
 cp .env.example .env
 # 必填
-ANTHROPIC_API_KEY=sk-ant-...          # Claude API
+AI_API_KEY=...                         # 当前 AI provider 的 API key
+AI_BASE_URL=https://...                # 当前 AI provider 的 API host (可选)
+AI_BACKUP_API_KEY=...                  # 备用 API key (可选)
+AI_BACKUP_BASE_URL=https://...         # 备用 API host (可选)
+AI_PROVIDER=anthropic                  # anthropic 或 openai（可选）
+AI_BACKUP_PROVIDER=anthropic           # 备用协议；不设置时跟随 AI_PROVIDER
 X_API_KEY=...                          # Consumer Key
 X_API_SECRET=...                       # Consumer Secret
 X_ACCESS_TOKEN=...                     # OAuth 1.0a Access Token
@@ -40,6 +45,10 @@ X_BEARER_TOKEN=...                     # 趋势接口
 GEMINI_API_KEY=sk-...                  # 图片生成 (主, Gemini 协议)
 OPENAI_API_KEY=sk-...                  # 图片生成 (备)
 ```
+
+默认使用 Anthropic Messages API。如需使用 OpenAI-compatible Chat
+Completions，将 `config.yaml` 中的 `ai.provider` 改为 `openai`，并配置
+`AI_API_KEY` / `AI_BASE_URL`。旧的 `ANTHROPIC_*` 和 `MODEL_*` 变量仍兼容。
 
 或使用 OAuth 自动认证:
 ```bash
@@ -158,7 +167,8 @@ targets:
     finance: 30
   reference_tweet_count: 2      # 生成时带入的参考推文数
 
-anthropic:
+ai:
+  model: gemini-2.5-pro
   model: deepseek-v4-pro
   max_tokens: 2000
   generation_retries: 3         # 生成内容为空时重试次数
@@ -235,7 +245,7 @@ python -m src persona-custom
 
 ```bash
 python -m src scrape -u elonmusk   # 爬取推文
-python -m src distill              # Claude 分析 → 人格
+python -m src distill              # 模型 API 分析 → 人格
 # 蒸馏后自动保存为 personas/{username}.yaml, 下次可随机复用
 ```
 
@@ -297,7 +307,8 @@ python -m src distill              # Claude 分析 → 人格
 
 ```yaml
 # config.yaml
-anthropic:
+ai:
+  model: gemini-2.5-pro
   prompt_template: prompts/viral.md  # 或留空跳过
 ```
 
