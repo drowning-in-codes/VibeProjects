@@ -35,7 +35,13 @@
     articles: [],
     nextOffset: null,
     articleRequestId: 0,
-    articlesLoading: false
+    articlesLoading: false,
+    officialAccounts: [],
+    followedOfficialAccounts: [],
+    officialAccount: null,
+    officialArticles: [],
+    officialOffset: 0,
+    officialHasMore: true
   };
 
   trigger.addEventListener("click", () => openPanel());
@@ -47,12 +53,168 @@
   async function openPanel() {
     panel.classList.add("is-open");
     panel.setAttribute("aria-hidden", "false");
-    if (!state.publications) await loadPublications();
+    if (location.hostname === "mp.weixin.qq.com") {
+      await renderOfficialHome();
+    } else if (!state.publications) await loadPublications();
   }
 
   function closePanel() {
     panel.classList.remove("is-open");
     panel.setAttribute("aria-hidden", "true");
+  }
+
+  async function renderOfficialHome() {
+    cancelArticleRequest();
+    [state.officialAccounts, state.followedOfficialAccounts] = await Promise.all([
+      sendMessage({ type: "getOfficialAccounts" }).catch(() => []),
+      sendMessage({ type: "getFollowedOfficialAccounts" }).catch(() => [])
+    ]);
+    content.replaceChildren(heading("公众号后台搜索", "官方页面"));
+    const hint = document.createElement("p");
+    hint.className = "history-hint";
+    hint.textContent = "这里管理扩展本地关注的公众号，不等同于微信官方关注关系；搜索和读取均需手动触发。";
+    content.append(hint);
+    const form = document.createElement("form");
+    form.className = "official-search";
+    const input = document.createElement("input");
+    input.type = "search";
+    input.maxLength = 80;
+    input.placeholder = "公众号名称或关键词";
+    input.required = true;
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.textContent = "搜索";
+    form.append(input, button);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      renderLoading("正在搜索公众号…");
+      try {
+        state.officialAccounts = await sendMessage({
+          type: "searchOfficialAccounts", query: input.value.trim()
+        });
+        renderOfficialAccounts();
+      } catch (error) {
+        renderError(error, renderOfficialHome);
+      }
+    });
+    content.append(form);
+    renderFollowedOfficialAccounts();
+    if (state.officialAccounts.length) renderOfficialAccounts(true);
+  }
+
+  function renderOfficialAccounts(append = false) {
+    const list = document.createElement("div");
+    list.className = "publication-list official-list";
+    state.officialAccounts.forEach((account) => {
+      list.append(createOfficialAccountEntry(account));
+    });
+    if (append) content.append(heading("已搜索公众号", `${state.officialAccounts.length} 个`), list);
+    else content.append(heading("搜索结果", `${state.officialAccounts.length} 个`), list);
+  }
+
+  function renderFollowedOfficialAccounts() {
+    if (!state.followedOfficialAccounts.length) return;
+    const list = document.createElement("div");
+    list.className = "publication-list official-list";
+    state.followedOfficialAccounts.forEach((account) => {
+      list.append(createOfficialAccountEntry(account));
+    });
+    content.append(heading("已关注公众号", `${state.followedOfficialAccounts.length} 个`), list);
+  }
+
+  function createOfficialAccountEntry(account) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "official-account-entry";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "publication";
+    button.textContent = account.nickname + (account.alias ? ` · ${account.alias}` : "");
+    button.addEventListener("click", () => loadOfficialArticles(account, true));
+    const followed = state.followedOfficialAccounts.some((item) => item.fakeid === account.fakeid);
+    const followButton = document.createElement("button");
+    followButton.type = "button";
+    followButton.className = "follow";
+    followButton.textContent = followed ? "已关注" : "关注";
+    followButton.setAttribute("aria-pressed", String(followed));
+    followButton.addEventListener("click", async () => {
+      followButton.disabled = true;
+      try {
+        state.followedOfficialAccounts = await sendMessage({
+          type: "setFollowedOfficialAccount", account, followed: !followed
+        });
+        renderOfficialHome();
+      } catch (error) {
+        renderError(error, renderOfficialHome);
+      }
+    });
+    wrapper.append(button, followButton);
+    return wrapper;
+  }
+
+  async function loadOfficialArticles(account, reset) {
+    if (state.articlesLoading) return;
+    state.articlesLoading = true;
+    const requestId = ++state.articleRequestId;
+    if (reset) {
+      state.officialAccount = account;
+      state.officialArticles = [];
+      state.officialOffset = 0;
+      state.officialHasMore = true;
+      renderLoading(`正在读取「${account.nickname}」的文章…`, true);
+    }
+    try {
+      const result = await sendMessage({
+        type: "getOfficialArticles", account, offset: state.officialOffset
+      });
+      if (requestId !== state.articleRequestId) return;
+      if (!result || !Array.isArray(result.articles) ||
+          !(result.nextOffset === null ||
+            (Number.isInteger(result.nextOffset) && result.nextOffset >= 0))) {
+        throw Object.assign(new Error("公众号后台返回了无法识别的分页数据。"), { code: "DATA" });
+      }
+      if (result.nextOffset !== null && result.nextOffset <= state.officialOffset) {
+        throw Object.assign(new Error("公众号后台分页没有继续前进，已停止读取。"), { code: "DATA" });
+      }
+      const incoming = Array.isArray(result?.articles) ? result.articles : [];
+      const known = new Set(state.officialArticles.map((article) => article.id));
+      const fresh = incoming.filter((article) => !known.has(article.id));
+      state.officialArticles.push(...fresh);
+      state.officialHasMore = Boolean(incoming.length && fresh.length && result.nextOffset !== null);
+      state.officialOffset = result.nextOffset ?? state.officialOffset;
+      renderOfficialArticleList();
+    } catch (error) {
+      if (requestId !== state.articleRequestId) return;
+      renderError(error, () => loadOfficialArticles(account, false), true);
+    } finally {
+      if (requestId === state.articleRequestId) state.articlesLoading = false;
+    }
+  }
+
+  function renderOfficialArticleList() {
+    const account = state.officialAccount;
+    content.replaceChildren(createBackButton(true), heading(account.nickname, "公众号后台搜索"));
+    const source = document.createElement("p");
+    source.className = "history-hint";
+    source.textContent = "公众号后台搜索 · 仅显示文章元数据，原文将在微信官方页面打开。";
+    content.append(source);
+    if (!state.officialArticles.length) {
+      renderEmpty("暂时没有文章", "该公众号没有返回可用的公开文章元数据。");
+      return;
+    }
+    const list = document.createElement("div");
+    list.className = "article-list";
+    state.officialArticles.forEach((article) => list.append(createArticle(article)));
+    content.append(list);
+    if (state.officialHasMore) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "load-more";
+      more.textContent = "加载更多";
+      more.disabled = state.articlesLoading;
+      more.addEventListener("click", () => loadOfficialArticles(account, false));
+      content.append(more);
+    }
   }
 
   async function loadPublications() {
@@ -98,7 +260,7 @@
     if (reset) {
       state.selectedPublication = publication;
       state.articles = [];
-      state.nextOffset = 0;
+      state.nextOffset = null;
       renderLoading(`正在读取「${publication.title}」的文章…`, true);
     }
 
@@ -106,15 +268,19 @@
       const result = await sendMessage({
         type: "getArticles",
         bookId: publication.id,
+        readerUrl: publication.readerUrl,
         offset: state.nextOffset ?? 0
       });
       if (requestId !== state.articleRequestId) return;
+      if (!result || !Array.isArray(result.articles)) {
+        throw Object.assign(new Error("微信读书返回了无法识别的数据。"), { code: "DATA" });
+      }
       state.articles.push(...result.articles);
       state.nextOffset = result.nextOffset;
       renderArticleList();
     } catch (error) {
       if (requestId !== state.articleRequestId) return;
-      renderError(error, () => loadArticles(publication, reset), true);
+      renderError(error, () => loadArticles(publication, reset), true, publication);
     } finally {
       if (requestId === state.articleRequestId) state.articlesLoading = false;
     }
@@ -127,7 +293,13 @@
 
   function renderArticleList() {
     const publication = state.selectedPublication;
-    content.replaceChildren(createBackButton(true), heading(publication.title, `${state.articles.length} 篇`));
+    content.replaceChildren(createBackButton(true), heading(publication.title, "最新文章"));
+
+    const history = document.createElement("p");
+    history.className = "history-hint";
+    history.textContent = "这里只显示最新文章；如需查看历史文章，请打开该公众号的微信读书页面。";
+    content.append(history);
+    if (publication.readerUrl) content.append(createReaderButton(publication));
 
     if (isCurrentArticle()) {
       const context = document.createElement("p");
@@ -146,14 +318,17 @@
     state.articles.forEach((article) => list.append(createArticle(article)));
     content.append(list);
 
-    if (state.nextOffset !== null) {
-      const more = document.createElement("button");
-      more.type = "button";
-      more.className = "load-more";
-      more.textContent = "加载更多";
-      more.addEventListener("click", () => loadArticles(publication, false));
-      content.append(more);
-    }
+  }
+
+  function createReaderButton(publication) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "reader-link";
+    button.textContent = "打开微信读书查看全部文章";
+    button.addEventListener("click", () => {
+      window.open(publication.readerUrl, "_blank", "noopener,noreferrer");
+    });
+    return button;
   }
 
   function createArticle(article) {
@@ -164,21 +339,46 @@
       element.target = "_blank";
       element.rel = "noopener noreferrer";
     }
+    if (isHttpsImageUrl(article.cover)) {
+      const cover = document.createElement("img");
+      cover.className = "article-cover";
+      cover.alt = "";
+      cover.addEventListener("error", () => cover.remove(), { once: true });
+      cover.src = article.cover;
+      element.append(cover);
+    }
+    const details = document.createElement("div");
+    details.className = "article-details";
     const title = document.createElement("h2");
     title.textContent = article.title;
     const meta = document.createElement("p");
     meta.className = "meta";
-    meta.textContent = [formatTime(article.publishedAt), article.readCount ? `阅读 ${article.readCount}` : "", article.likeCount ? `赞 ${article.likeCount}` : ""]
+    meta.textContent = [article.publicationName || article.accountName, formatTime(article.publishedAt), meaningfulCount(article.readCount) ? `阅读 ${article.readCount}` : "", meaningfulCount(article.likeCount) ? `赞 ${article.likeCount}` : ""]
       .filter(Boolean)
       .join(" · ");
-    element.append(title, meta);
+    details.append(title, meta);
     if (article.summary) {
       const summary = document.createElement("p");
       summary.className = "summary";
       summary.textContent = article.summary;
-      element.append(summary);
+      details.append(summary);
     }
+    element.append(details);
     return element;
+  }
+
+  function isHttpsImageUrl(value) {
+    if (typeof value !== "string" || !value.trim()) return false;
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" && Boolean(url.hostname);
+    } catch {
+      return false;
+    }
+  }
+
+  function meaningfulCount(value) {
+    return Number.isFinite(value) && value > 0;
   }
 
   function createBackButton(visible) {
@@ -187,7 +387,10 @@
     button.className = "back";
     button.textContent = "← 公众号列表";
     button.hidden = !visible;
-    button.addEventListener("click", renderPublicationList);
+    button.addEventListener("click", () => {
+      if (location.hostname === "mp.weixin.qq.com") renderOfficialHome();
+      else renderPublicationList();
+    });
     return button;
   }
 
@@ -249,26 +452,30 @@
     return wrapper;
   }
 
-  function renderError(error, retry, showBack = false) {
+  function renderError(error, retry, showBack = false, publication = null) {
     content.replaceChildren(createBackButton(showBack));
     const card = document.createElement("div");
     card.className = "error";
     const title = document.createElement("h2");
-    title.textContent = "无法获取文章";
+    title.textContent = showBack ? "无法获取文章" : "无法完成请求";
     const message = document.createElement("p");
     message.textContent = error.message || "发生未知错误，请稍后重试。";
     const retryButton = document.createElement("button");
     retryButton.type = "button";
     retryButton.textContent = "重试";
     retryButton.addEventListener("click", retry);
-    const loginButton = document.createElement("button");
-    loginButton.type = "button";
-    loginButton.className = "login";
-    loginButton.textContent = "前往微信读书登录";
-    loginButton.addEventListener("click", () => {
-      window.open("https://weread.qq.com/", "_blank", "noopener,noreferrer");
-    });
-    card.append(title, message, loginButton, retryButton);
+    if (publication?.readerUrl) card.append(createReaderButton(publication));
+    if (error.code === "AUTH") {
+      const loginButton = document.createElement("button");
+      loginButton.type = "button";
+      loginButton.className = "login";
+      loginButton.textContent = "前往微信读书登录";
+      loginButton.addEventListener("click", () => {
+        window.open("https://weread.qq.com/", "_blank", "noopener,noreferrer");
+      });
+      card.append(loginButton);
+    }
+    card.append(retryButton);
     content.append(card);
   }
 
@@ -286,9 +493,15 @@
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(message, (response) => {
         if (chrome.runtime.lastError) {
-          reject(new Error("扩展后台不可用，请刷新页面后重试。"));
+          reject(Object.assign(
+            new Error("扩展后台不可用，请刷新页面后重试。"),
+            { code: "NETWORK" }
+          ));
         } else if (!response?.ok) {
-          reject(new Error(response?.error?.message || "请求失败，请稍后重试。"));
+          reject(Object.assign(
+            new Error(response?.error?.message || "请求失败，请稍后重试。"),
+            { code: response?.error?.code || "UNKNOWN" }
+          ));
         } else {
           resolve(response.data);
         }

@@ -3,7 +3,7 @@
   "name": "微信读书公众号文章浏览器",
   "version": "0.1.0",
   "description": "在微信读书和公众号文章页浏览已关注公众号的文章。",
-  "permissions": ["scripting", "tabs"],
+  "permissions": ["scripting", "tabs", "storage"],
   "host_permissions": [
     "https://weread.qq.com/*",
     "https://mp.weixin.qq.com/*"
