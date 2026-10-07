@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>公众号阅读清单</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">LOCAL WECHAT READER</p>
+          <h1>公众号阅读清单</h1>
+          <p class="subtitle">搜索公众号，关注到本地清单，浏览历史文章。</p>
+        </div>
+        <button id="open-session" class="secondary">打开微信页面并登录</button>
+      </header>
+
+      <section class="notice">
+        <strong>本地工具</strong>
+        <span>“关注”只维护本地阅读清单，不会改变微信官方关注关系；文章导出不在本项目范围内。</span>
+      </section>
+
+      <section class="search-panel">
+        <form id="search-form">
+          <input id="search-input" type="search" maxlength="80" placeholder="输入公众号名称或关键词" required />
+          <button type="submit">搜索公众号</button>
+        </form>
+        <p id="session-status" class="muted">尚未连接微信页面</p>
+      </section>
+
+      <div id="message" class="message" hidden></div>
+      <section class="layout">
+        <div>
+          <div class="section-title"><h2>搜索结果</h2><span id="result-count"></span></div>
+          <div id="results" class="account-grid"></div>
+        </div>
+        <aside>
+          <div class="section-title"><h2>本地关注清单</h2><span id="followed-count"></span></div>
+          <div id="followed" class="account-list"></div>
+        </aside>
+      </section>
+
+      <section id="articles-panel" class="articles-panel" hidden>
+        <div class="section-title"><h2 id="articles-title">历史文章</h2><button id="close-articles" class="link">返回清单</button></div>
+        <div id="articles" class="article-list"></div>
+        <button id="load-more" class="secondary" hidden>加载更多</button>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
