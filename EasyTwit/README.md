@@ -36,6 +36,8 @@ AI_BACKUP_API_KEY=...                  # 备用 API key (可选)
 AI_BACKUP_BASE_URL=https://...         # 备用 API host (可选)
 AI_PROVIDER=anthropic                  # anthropic 或 openai（可选）
 AI_BACKUP_PROVIDER=anthropic           # 备用协议；不设置时跟随 AI_PROVIDER
+AI_MODEL=claude-sonnet-4-6             # 主模型（可选）
+AI_BACKUP_MODEL=claude-sonnet-4-6      # 备用模型（可选）
 X_API_KEY=...                          # Consumer Key
 X_API_SECRET=...                       # Consumer Secret
 X_ACCESS_TOKEN=...                     # OAuth 1.0a Access Token
@@ -49,6 +51,8 @@ OPENAI_API_KEY=sk-...                  # 图片生成 (备)
 默认使用 Anthropic Messages API。如需使用 OpenAI-compatible Chat
 Completions，将 `config.yaml` 中的 `ai.provider` 改为 `openai`，并配置
 `AI_API_KEY` / `AI_BASE_URL`。旧的 `ANTHROPIC_*` 和 `MODEL_*` 变量仍兼容。
+`AI_*` 环境变量优先于 `config.yaml` 中对应的 `ai.*` 配置；如果没有设置
+备用模型，备用请求会回退到主模型。
 
 或使用 OAuth 自动认证:
 ```bash

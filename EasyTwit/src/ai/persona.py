@@ -278,11 +278,13 @@ class PersonaManager:
 
         primary_provider = config.ai_provider
         backup_provider = config.ai_backup_provider
+        primary_model = config.ai_model
+        backup_model = config.ai_backup_model
 
-        def call(client, provider):
+        def call(client, provider, model):
             response_text = complete_chat(
                 client,
-                model=config.ai_model,
+                model=model,
                 max_tokens=config.ai_max_tokens,
                 prompt=prompt,
                 system_prompt=config.ai_system_prompt,
@@ -296,8 +298,10 @@ class PersonaManager:
 
         from .fallback import try_with_fallback
         return await try_with_fallback(
-            primary_fn=lambda: call(self.client, primary_provider),
-            backup_fn=lambda: call(self.backup_client, backup_provider)
+            primary_fn=lambda: call(self.client, primary_provider, primary_model),
+            backup_fn=lambda: call(
+                self.backup_client, backup_provider, backup_model
+            )
             if self.backup_client else None,
             label="Model",
         )
@@ -306,11 +310,13 @@ class PersonaManager:
         """调用模型 API（带主备切换）"""
         primary_provider = config.ai_provider
         backup_provider = config.ai_backup_provider
+        primary_model = config.ai_model
+        backup_model = config.ai_backup_model
 
-        def call(client, provider):
+        def call(client, provider, model):
             response_text = complete_chat(
                 client,
-                model=config.ai_model,
+                model=model,
                 max_tokens=config.ai_max_tokens,
                 prompt=prompt,
                 system_prompt=config.ai_system_prompt,
@@ -320,8 +326,10 @@ class PersonaManager:
 
         from .fallback import try_with_fallback
         return await try_with_fallback(
-            primary_fn=lambda: call(self.client, primary_provider),
-            backup_fn=lambda: call(self.backup_client, backup_provider)
+            primary_fn=lambda: call(self.client, primary_provider, primary_model),
+            backup_fn=lambda: call(
+                self.backup_client, backup_provider, backup_model
+            )
             if self.backup_client else None,
             label="Model",
         )

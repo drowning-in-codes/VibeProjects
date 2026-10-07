@@ -1,4 +1,3 @@
-const WEREAD_ORIGIN = "https://weread.qq.com";
 const MP_BOOK_PREFIX = "MP_WXS_";
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

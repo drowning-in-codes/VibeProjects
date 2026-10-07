@@ -12,9 +12,11 @@ x:
 # provider / backup_provider 可分别设置为 anthropic 或 openai。
 # backup_provider 省略时跟随 provider。主备凭证从 .env 加载。
 ai:
-  provider: anthropic
-  backup_provider: anthropic
-  model: claude-sonnet-4-6
+  provider: openai
+  model: gemini-2.5-pro
+
+  backup_provider: openai
+  backup_model: deepseek-flash
   max_tokens: 2000
   generation_retries: 3
   # 系统 prompt (定义 AI 角色, 去 AI 味)

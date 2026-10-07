@@ -178,7 +178,18 @@ class Config:
 
     @property
     def ai_model(self) -> str:
-        return self.get('ai.model', self.get('anthropic.model', 'gemini-2.5-pro'))
+        return os.getenv('AI_MODEL') or self.get(
+            'ai.model',
+            self.get('anthropic.model', 'gemini-2.5-pro'),
+        )
+
+    @property
+    def ai_backup_model(self) -> str:
+        """Model name used by the backup provider."""
+        return os.getenv('AI_BACKUP_MODEL') or self.get(
+            'ai.backup_model',
+            self.ai_model,
+        )
 
     @property
     def ai_max_tokens(self) -> int:

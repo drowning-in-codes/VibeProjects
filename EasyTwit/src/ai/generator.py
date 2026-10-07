@@ -20,6 +20,7 @@ class ContentGenerator:
         http_client = config.get_httpx_client()
 
         primary_provider = config.ai_provider
+        self.primary_model = config.ai_model
         self.primary_provider = primary_provider
         self.client = create_chat_client(
             config.anthropic_api_key
@@ -31,6 +32,7 @@ class ContentGenerator:
         )
 
         backup_provider = config.ai_backup_provider
+        self.backup_model = config.ai_backup_model
         self.backup_provider = backup_provider
         self.backup_client = None
         backup_key = (
@@ -147,7 +149,7 @@ class ContentGenerator:
             def call(client):
                 return complete_chat(
                     client,
-                    model=config.ai_model,
+                    model=self.primary_model,
                     prompt=prompt,
                     max_tokens=500,
                     system_prompt=config.ai_system_prompt,
@@ -157,7 +159,7 @@ class ContentGenerator:
             def call_backup(client):
                 return complete_chat(
                     client,
-                    model=config.ai_model,
+                    model=self.backup_model,
                     prompt=prompt,
                     max_tokens=500,
                     system_prompt=config.ai_system_prompt,
