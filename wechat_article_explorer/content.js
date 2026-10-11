@@ -1217,8 +1217,8 @@
     const input = document.getElementById('wmx-add-input');
     const parsed = parseMpInput(input ? input.value : '');
     if (!parsed.ok) { log(addReasonHint(parsed.reason), 'warn'); return; }
-    if (state.accounts.some((a) => a.bookId === parsed.bookId)) {
-      log('这个号已经在列表里了：' + parsed.bookId, 'warn');
+    if (state.custom.some((a) => a.bookId === parsed.bookId)) {
+      log('这个号已经在文章查看范围里了：' + parsed.bookId, 'warn');
       return;
     }
 
@@ -1412,7 +1412,7 @@
       '<button class="wmx-searchres-close" id="wmx-searchres-close" type="button" aria-label="关闭搜索结果">×</button></div>' +
       state.search.list.map((item, index) => {
       const type = item.serviceType === 1 ? '服务号' : item.serviceType === 2 ? '企业号' : '订阅号';
-      const exists = state.accounts.some((a) => a.bookId === item.bookId);
+      const exists = state.custom.some((a) => a.bookId === item.bookId);
       return '<div class="wmx-sr">' +
         (item.avatar
           ? '<img class="wmx-sr-av" src="' + esc(item.avatar) + '" data-ch="' + esc(item.name) + '" referrerpolicy="no-referrer" alt="">'
