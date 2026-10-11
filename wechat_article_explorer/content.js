@@ -547,11 +547,11 @@
     }
     const done = success + '/' + ids.length;
     if (success === ids.length) {
-      toast('已全部添加到公众号关注（' + done + '）。', 'ok');
+      toast('已全部添加到微信读书关注（' + done + '）。', 'ok');
     } else if (success) {
-      toast('部分添加到公众号关注（' + done + '）。' + firstErr, 'err');
+      toast('部分添加到微信读书关注（' + done + '）。' + firstErr, 'err');
     } else {
-      toast('添加到公众号关注失败（0/' + ids.length + '）。' + firstErr, 'err');
+      toast('添加到微信读书关注失败（0/' + ids.length + '）。' + firstErr, 'err');
     }
     log('加入书架完成 ' + done + '。刷新关注列表即可看到。', success ? 'ok' : 'warn');
   }
@@ -1330,14 +1330,14 @@
   async function pushSelectedCustom() {
     const ids = state.custom.map((a) => a.bookId);
     if (!ids.length) {
-      toast('文章查看范围为空，暂时没有可添加到公众号关注的号。', 'err');
+      toast('文章查看范围为空，暂时没有可添加到微信读书关注的号。', 'err');
       log('文章查看范围为空，暂时没有可加入书架的公众号。', 'warn');
       return;
     }
     if (state.login !== 'logged') {
       const ok = await checkLogin(true);
       if (!ok) {
-        toast('需要先登录微信读书才能添加到公众号关注。', 'err');
+        toast('需要先登录微信读书才能添加到微信读书关注。', 'err');
         log('需要先登录微信读书才能加入书架。', 'warn');
         startLoginFlow();
         return;
@@ -1816,13 +1816,13 @@
             <input id="wmx-add-input" class="wmx-txt wmx-add-input" placeholder="文章链接 / __biz / MP_WXS_数字">
             <button class="wmx-btn wmx-primary" id="wmx-add-go">添加</button>
           </div>
-          <div class="wmx-actions">
-            <button class="wmx-mini" id="wmx-add-cur" hidden>将当前页面公众号加到查看范围</button>
-            <button class="wmx-mini" id="wmx-add-shelf">将查看范围公众号添加到公众号关注</button>
-          </div>
           <div class="wmx-hint wmx-tipline">
             <span class="wmx-info" data-wmx-tip="可粘贴公众号文章完整链接、__biz、fakid 或 MP_WXS_数字添加，不必先关注；在公众号文章页也可以直接点击“收录这个号”。" aria-label="添加公众号说明">i</span>
             <span>添加方式说明</span>
+          </div>
+          <div class="wmx-actions">
+            <button class="wmx-mini" id="wmx-add-cur" hidden>将当前页面公众号加到查看范围</button>
+            <button class="wmx-mini" id="wmx-add-shelf">将查看范围公众号添加到微信读书关注</button>
           </div>
         </div>
 
