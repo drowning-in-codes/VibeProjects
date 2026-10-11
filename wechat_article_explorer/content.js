@@ -1786,7 +1786,7 @@
       <div class="wmx-view" id="wmx-view-acc">
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b>文章查看与获取</b>
+            <b><span aria-hidden="true">📥</span> 文章查看与获取</b>
             <span class="wmx-count" id="wmx-picked">共 0 个</span>
           </div>
           <div class="wmx-selected-accounts" id="wmx-selected-accounts">
@@ -1812,11 +1812,11 @@
 
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <span class="wmx-sec-title">
+            <b><span aria-hidden="true">➕</span> 添加公众号到查看范围</b>
+            <span class="wmx-sec-actions">
               <button class="wmx-mini wmx-eye" id="wmx-add-eye" title="隐藏添加区域" aria-label="隐藏添加区域" aria-pressed="false">👁️</button>
-              <b>添加公众号到查看范围</b>
+              <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
             </span>
-            <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
           </div>
           <div id="wmx-add-body">
             <div class="wmx-sub">① 搜索公众号（需登录公众号后台）</div>
@@ -1863,7 +1863,7 @@
 
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b>运行记录</b>
+            <b><span aria-hidden="true">📋</span> 运行记录</b>
             <span class="wmx-sec-actions">
               <button class="wmx-mini wmx-eye" id="wmx-log-eye" title="隐藏运行记录" aria-label="隐藏运行记录" aria-pressed="false">👁️</button>
               <button class="wmx-mini" id="wmx-logclear">清空</button>
@@ -1876,7 +1876,7 @@
       <div class="wmx-view" id="wmx-view-art" hidden>
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b>筛选与导出文章</b>
+            <b><span aria-hidden="true">📤</span> 筛选与导出文章</b>
             <span class="wmx-count" id="wmx-filtered"></span>
           </div>
           <div class="wmx-opts">
@@ -1893,6 +1893,9 @@
         </div>
 
         <div class="wmx-sec">
+          <div class="wmx-sec-h">
+            <b><span aria-hidden="true">📰</span> 公众号文章</b>
+          </div>
           <div class="wmx-result" id="wmx-result"><div class="wmx-empty">还没有文章。请先添加公众号到文章查看范围，再点击“拉取文章”。</div></div>
         </div>
       </div>`;

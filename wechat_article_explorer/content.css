@@ -312,7 +312,6 @@
   margin-bottom: 8px; color: var(--wmx-text-hi); font-size: 13px;
 }
 #wmx-panel .wmx-sec-actions { display: inline-flex; align-items: center; gap: 6px; }
-#wmx-panel .wmx-sec-title { display: inline-flex; align-items: center; gap: 8px; }
 #wmx-panel .wmx-sec-h b {
   display: inline-flex; align-items: center; gap: 6px;
   letter-spacing: .1px;
