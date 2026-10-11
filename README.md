@@ -11,6 +11,7 @@
 | [biliLiveSummary](./biliLiveSummary/) | B站直播日报自动推送系统 (旧版) | Python, bilibili-api, SQLite |
 | [simpleMusic](./simpleMusic/) | 现代音乐网站 — 在线音乐播放、歌单管理 | Spring Boot 3, MyBatis, MySQL, Vue 3, Element Plus |
 | [smart-campus](./smart-campus/) | 高校在线学习平台 — 课程、考试、学习管理 | Spring Boot, MyBatis, MySQL, Vue 3 |
+| [wechat_article_explorer](./wechat_article_explorer/) | 微信读书公众号文章浏览与导出扩展 — 搜索、批量拉取、筛选和导出公众号文章 | Chrome/Edge MV3, JavaScript, 微信读书接口 |
 
 ---
 
@@ -137,3 +138,66 @@ smart-campus/
 **核心业务**: 基础数据（院系/专业/班级/用户）、教学（课程→章节→课时→资源）、习题试卷、在线考试、作业评估、学习数据追踪、资源管理、系统权限
 
 **技术栈**: Spring Boot, MyBatis, MySQL, Redis, Vue 3, JWT 认证
+
+---
+
+### wechat_article_explorer
+
+Chrome / Edge Manifest V3 浏览器扩展，用于在微信读书网页版或微信公众号页面中管理和查看公众号文章。扩展通过微信读书接口读取文章，支持按公众号批量拉取、筛选和导出，不需要单独部署后端服务。
+
+**主要功能**:
+
+- 刷新微信读书关注的公众号，并添加到文章查看列表；
+- 按公众号名称搜索，或通过文章链接、`__biz`、`fakid`、`MP_WXS_数字` 添加公众号；
+- 在公众号文章页面识别当前公众号，一键收录公众号或文章；
+- 按公众号分组查看文章，支持关键词和日期筛选；
+- 每个公众号默认显示 3 篇文章，可按需逐步显示更多；
+- 导出 CSV、Markdown，复制文章链接或标题+链接；
+- 支持深色/浅色模式和本地缓存；
+- 提供诊断导出，方便排查接口字段变化。
+
+```text
+wechat_article_explorer/
+├── manifest.json    # Manifest V3 配置、权限和注入入口
+├── content.js       # 页面注入、界面和主要业务逻辑
+├── content.css      # 抽屉、列表和主题样式
+├── background.js    # 跨域请求及标签页代理
+└── README.md        # 安装、使用和贡献说明
+```
+
+**使用方式**:
+
+1. 在 Chrome 或 Edge 的扩展管理页面开启开发者模式；
+2. 选择“加载已解压的扩展程序”，加载 `wechat_article_explorer` 目录；
+3. 打开 `weread.qq.com` 或 `mp.weixin.qq.com`；
+4. 打开页面右侧的“公众号导出”抽屉，登录微信读书后添加公众号并拉取文章。
+
+公众号名称搜索需要公众号后台登录态；文章读取需要微信读书登录态。详细安装步骤、权限说明、常见问题和接口限制见 [`wechat_article_explorer/README.md`](./wechat_article_explorer/README.md)。
+
+## 参与贡献
+
+欢迎通过 Issue 和 Pull Request 参与改进：
+
+- 报告可复现的 Bug、接口变化或浏览器兼容性问题；
+- 改进项目功能、交互、样式、错误提示和文档；
+- 补充测试、诊断工具或其他浏览器支持；
+- 分享不包含敏感信息的接口变化和兼容方案。
+
+提交前建议：
+
+1. 一个 Pull Request 尽量只解决一个问题；
+2. 同步更新受影响项目的 README；
+3. 运行对应项目已有的检查命令；
+4. 在描述中说明修改原因、测试方式和已知限制；
+5. 不要提交 Cookie、Token、密码、二维码、个人账号信息或本地缓存。
+
+对于 `wechat_article_explorer`，可在项目目录运行：
+
+```powershell
+node --check content.js
+node --check background.js
+Get-Content manifest.json | ConvertFrom-Json | Out-Null
+git diff --check
+```
+
+提交 Issue 或诊断文件前，请先脱敏登录凭据、Token、Cookie 及文章中的个人信息。

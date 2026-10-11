@@ -98,7 +98,15 @@
   border-bottom: 1px solid #333a47;
   flex: 0 0 auto;
 }
+#wmx-panel .wmx-head-title {
+  display: inline-flex; align-items: center; gap: 9px; min-width: 0;
+}
 #wmx-panel .wmx-title { font-weight: 600; font-size: 13.5px; letter-spacing: .2px; }
+#wmx-panel .wmx-project-link {
+  color: #8fb4ff; font-size: 11.5px; font-weight: 400;
+  text-decoration: none; white-space: nowrap;
+}
+#wmx-panel .wmx-project-link:hover { color: #c2d5ff; text-decoration: underline; }
 #wmx-panel .wmx-head-actions { display: inline-flex; align-items: center; gap: 8px; }
 #wmx-panel .wmx-theme {
   padding: 3px 8px; font-size: 11px; color: #cdd5e0;
@@ -473,3 +481,18 @@
 #wmx-panel.wmx-light .wmx-art-group { border-bottom-color: #d7deea; }
 #wmx-panel.wmx-light .wmx-more-art { background: #edf3fb; color: #3568bd; border-color: #bfd0e8; }
 #wmx-panel.wmx-light .wmx-theme { background: #eaf0f8; color: #3d587b; }
+#wmx-panel.wmx-light .wmx-project-link { color: #3568bd; }
+#wmx-panel.wmx-light .wmx-project-link:hover { color: #244e99; }
+
+/* ---------- 面板外部组件主题 ---------- */
+#wmx-dock.wmx-light .wmx-dock-btn {
+  background: #fff; color: #2d405a;
+  border-left: 1px solid #d7deea; border-top: 1px solid #d7deea;
+  border-bottom: 1px solid #d7deea;
+  box-shadow: -3px 2px 16px rgba(31, 47, 70, .2);
+}
+#wmx-dock.wmx-light .wmx-dock-btn:hover { background: #edf3fb; }
+#wmx-dock.wmx-light .wmx-dock-badge {
+  background: #3568bd; color: #fff;
+  box-shadow: 0 3px 8px rgba(31, 47, 70, .25);
+}

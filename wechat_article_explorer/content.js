@@ -1087,6 +1087,8 @@
     state.theme = theme === 'light' ? 'light' : 'dark';
     const panel = document.getElementById('wmx-panel');
     if (panel) panel.classList.toggle('wmx-light', state.theme === 'light');
+    const dock = document.getElementById('wmx-dock');
+    if (dock) dock.classList.toggle('wmx-light', state.theme === 'light');
     const button = document.getElementById('wmx-theme');
     if (button) button.textContent = state.theme === 'light' ? '深色' : '浅色';
     stor.set('wmx_theme', state.theme);
@@ -1593,7 +1595,10 @@
     panel.id = 'wmx-panel';
     panel.innerHTML = `
       <div class="wmx-head">
-        <span class="wmx-title">微信读书 · 公众号文章导出</span>
+        <span class="wmx-head-title">
+          <span class="wmx-title">微信读书 · 公众号文章导出</span>
+          <a class="wmx-project-link" href="https://github.com/drowning-in-codes/VibeProjects/tree/main/wechat_article_explorer" target="_blank" rel="noopener noreferrer">查看项目</a>
+        </span>
         <span class="wmx-head-actions">
           <button class="wmx-theme" id="wmx-theme" title="切换浅色/深色模式">浅色</button>
           <span class="wmx-close" id="wmx-close" title="收起（Esc）">×</span>
