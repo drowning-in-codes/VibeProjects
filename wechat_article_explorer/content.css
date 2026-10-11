@@ -2,7 +2,58 @@
    微信读书 · 公众号文章导出器 —— 注入样式
    形态：页面右侧常驻标签 + 滑出式全高抽屉
    所有类名统一 wmx- 前缀，避免污染被注入页面
+   主题色与状态色保持不变，中性色板统一由 CSS 变量管理
    ============================================================ */
+
+/* ---------- 设计变量（深色默认） ---------- */
+#wmx-panel,
+#wmx-dock {
+  --wmx-bg: #1e222b;            /* 抽屉底色 */
+  --wmx-surface: #262b36;       /* 抬升面：顶栏 / 登录条 / 页签 */
+  --wmx-surface-2: #191d25;     /* 下沉面：列表 / 输入框 / 搜索框 */
+  --wmx-surface-3: #14171e;     /* 最深面：日志 */
+  --wmx-hover: #2e3442;         /* 控件 hover */
+  --wmx-row-hover: #20252f;     /* 列表行 hover */
+  --wmx-border: #333a47;        /* 主边框 */
+  --wmx-border-2: #2c3341;      /* 次边框 / 分节线 */
+  --wmx-border-ctrl: #3b4354;   /* 控件边框：按钮 / 输入 */
+  --wmx-divider: #262d3a;       /* 列表内分隔线 */
+  --wmx-text: #e8ebf0;
+  --wmx-text-hi: #ffffff;
+  --wmx-text-dim: #cdd5e0;
+  --wmx-text-muted: #98a2b3;
+  --wmx-text-faint: #6b7688;
+  --wmx-accent: #3b6fe0;
+  --wmx-accent-hover: #2f5fc9;
+  --wmx-accent-soft: #4c8dff;
+  --wmx-link: #7fb0ff;
+  --wmx-link-strong: #9ebcff;
+}
+
+/* ---------- 设计变量（浅色覆盖） ---------- */
+#wmx-panel.wmx-light,
+#wmx-dock.wmx-light {
+  --wmx-bg: #f6f8fb;
+  --wmx-surface: #ffffff;
+  --wmx-surface-2: #ffffff;
+  --wmx-surface-3: #ffffff;
+  --wmx-hover: #eef3fa;
+  --wmx-row-hover: #f0f5fc;
+  --wmx-border: #d7deea;
+  --wmx-border-2: #dce3ed;
+  --wmx-border-ctrl: #cbd5e3;
+  --wmx-divider: #e7ebf2;
+  --wmx-text: #243044;
+  --wmx-text-hi: #1f2b3d;
+  --wmx-text-dim: #34445a;
+  --wmx-text-muted: #708096;
+  --wmx-text-faint: #718097;
+  --wmx-accent: #3b6fe0;
+  --wmx-accent-hover: #2f5fc9;
+  --wmx-accent-soft: #3568bd;
+  --wmx-link: #3568bd;
+  --wmx-link-strong: #244e99;
+}
 
 /* ---------- 右侧常驻标签 ---------- */
 #wmx-dock {
@@ -25,7 +76,7 @@
   gap: 10px;
   padding: 15px 9px;
   background: #2b2f3a;
-  color: #e8ebf0;
+  color: var(--wmx-text);
   border-radius: 10px 0 0 10px;
   box-shadow: -3px 2px 16px rgba(0, 0, 0, .3);
   cursor: pointer;
@@ -37,7 +88,7 @@
 #wmx-dock .wmx-dock-txt {
   writing-mode: vertical-rl;
   letter-spacing: 3px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1;
 }
 #wmx-dock .wmx-dock-badge {
@@ -48,10 +99,10 @@
   height: 19px;
   line-height: 19px;
   padding: 0 5px;
-  border-radius: 10px;
-  background: #3b6fe0;
+  border-radius: 999px;
+  background: var(--wmx-accent);
   color: #fff;
-  font-size: 10.5px;
+  font-size: 11px;
   text-align: center;
   box-shadow: 0 3px 8px rgba(0, 0, 0, .32);
   opacity: 0;
@@ -70,9 +121,9 @@
   max-width: 100vw;
   display: flex;
   flex-direction: column;
-  background: #1e222b;
-  color: #e8ebf0;
-  border-left: 1px solid #333a47;
+  background: var(--wmx-bg);
+  color: var(--wmx-text);
+  border-left: 1px solid var(--wmx-border);
   box-shadow: -16px 0 44px rgba(0, 0, 0, .4);
   z-index: 2147483001;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
@@ -94,16 +145,16 @@
   justify-content: space-between;
   gap: 8px;
   padding: 12px 14px;
-  background: #262b36;
-  border-bottom: 1px solid #333a47;
+  background: var(--wmx-surface);
+  border-bottom: 1px solid var(--wmx-border);
   flex: 0 0 auto;
 }
 #wmx-panel .wmx-head-title {
   display: inline-flex; align-items: center; gap: 9px; min-width: 0;
 }
-#wmx-panel .wmx-title { font-weight: 600; font-size: 13.5px; letter-spacing: .2px; }
+#wmx-panel .wmx-title { font-weight: 600; font-size: 14px; letter-spacing: .2px; }
 #wmx-panel .wmx-project-link {
-  color: #8fb4ff; font-size: 11.5px; font-weight: 400;
+  color: var(--wmx-link); font-size: 12px; font-weight: 400;
   text-decoration: none; white-space: nowrap;
 }
 #wmx-panel .wmx-project-link:hover { color: #c2d5ff; text-decoration: underline; }
@@ -114,11 +165,11 @@
 }
 #wmx-panel .wmx-head-actions { display: inline-flex; align-items: center; gap: 8px; }
 #wmx-panel .wmx-theme {
-  padding: 3px 8px; font-size: 11px; color: #cdd5e0;
+  padding: 3px 8px; font-size: 11px; color: var(--wmx-text-dim);
   background: #303746; border-color: #465066;
 }
-#wmx-panel .wmx-close { cursor: pointer; font-size: 21px; line-height: 1; color: #98a2b3; padding: 0 4px; }
-#wmx-panel .wmx-close:hover { color: #fff; }
+#wmx-panel .wmx-close { cursor: pointer; font-size: 21px; line-height: 1; color: var(--wmx-text-muted); padding: 0 4px; }
+#wmx-panel .wmx-close:hover { color: var(--wmx-text-hi); }
 
 /* 登录区 */
 #wmx-panel .wmx-loginwrap { padding: 0 14px; flex: 0 0 auto; }
@@ -126,15 +177,15 @@
 #wmx-panel .wmx-loginbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 10px 0 2px; padding: 8px 11px;
-  border-radius: 8px; font-size: 12.5px;
-  background: #262b36; border: 1px solid #3b4354; color: #cdd5e0;
+  border-radius: 8px; font-size: 13px;
+  background: var(--wmx-surface); border: 1px solid var(--wmx-border-ctrl); color: var(--wmx-text-dim);
 }
 #wmx-panel .wmx-loginbar b { font-weight: 600; }
 #wmx-panel .wmx-dot {
   flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%;
-  background: #98a2b3; box-shadow: 0 0 0 3px rgba(152, 162, 179, .15);
+  background: var(--wmx-text-muted); box-shadow: 0 0 0 3px rgba(152, 162, 179, .15);
 }
-#wmx-panel .wmx-note { flex: 1 1 auto; color: #8b95a7; font-size: 12px; min-width: 120px; }
+#wmx-panel .wmx-note { flex: 1 1 auto; color: var(--wmx-text-muted); font-size: 12px; min-width: 120px; }
 
 #wmx-panel .wmx-loginbar.wmx-ok { background: #1d3328; border-color: #2f5d45; color: #a8e6c4; }
 #wmx-panel .wmx-loginbar.wmx-ok .wmx-dot { background: #4ec98a; box-shadow: 0 0 0 3px rgba(78, 201, 138, .18); }
@@ -146,19 +197,19 @@
 
 #wmx-panel .wmx-loginbar.wmx-wait { background: #23304a; border-color: #3a5280; color: #bcd2f5; }
 #wmx-panel .wmx-loginbar.wmx-wait .wmx-dot {
-  background: #4c8dff; box-shadow: 0 0 0 3px rgba(76, 141, 255, .2);
+  background: var(--wmx-accent-soft); box-shadow: 0 0 0 3px rgba(76, 141, 255, .2);
   animation: wmx-pulse 1.5s ease-in-out infinite;
 }
 #wmx-panel .wmx-loginbar.wmx-wait .wmx-note { color: #8fa8cf; }
 @keyframes wmx-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 
-#wmx-panel .wmx-login-btn { background: #3b6fe0; border-color: #3b6fe0; color: #fff; font-weight: 600; }
-#wmx-panel .wmx-login-btn:hover:not(:disabled) { background: #2f5fc9; border-color: #2f5fc9; }
+#wmx-panel .wmx-login-btn { background: var(--wmx-accent); border-color: var(--wmx-accent); color: #fff; font-weight: 600; }
+#wmx-panel .wmx-login-btn:hover:not(:disabled) { background: var(--wmx-accent-hover); border-color: var(--wmx-accent-hover); }
 
 /* 二维码区 */
 #wmx-panel .wmx-qr { text-align: center; }
 #wmx-panel .wmx-qr:empty { display: none; margin: 0; }
-#wmx-panel .wmx-qr-tip { color: #8b95a7; font-size: 12px; line-height: 1.6; padding: 8px 6px; }
+#wmx-panel .wmx-qr-tip { color: var(--wmx-text-muted); font-size: 12px; line-height: 1.6; padding: 8px 6px; }
 #wmx-panel .wmx-qr-tip.wmx-qr-ok { color: #7fd1a8; padding-bottom: 0; }
 #wmx-panel .wmx-qr-img {
   display: block; margin: 6px auto 2px; width: 170px; height: 170px;
@@ -168,20 +219,20 @@
 /* ---------- 页签 ---------- */
 #wmx-panel .wmx-tabs {
   display: flex; gap: 6px; padding: 10px 14px 0; flex: 0 0 auto;
-  border-bottom: 1px solid #2c3341;
+  border-bottom: 1px solid var(--wmx-border-2);
 }
 #wmx-panel .wmx-tab {
   flex: 1 1 0;
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   padding: 8px 10px;
-  border: 1px solid #333a47;
+  border: 1px solid var(--wmx-border);
   border-bottom: 0;
   border-radius: 8px 8px 0 0;
-  background: #262b36; color: #98a2b3;
-  font-size: 12.5px; font-weight: 600;
+  background: var(--wmx-surface); color: var(--wmx-text-muted);
+  font-size: 13px; font-weight: 600;
   transform: translateY(1px);
 }
-#wmx-panel .wmx-tab:hover:not(.wmx-tab-on) { background: #2e3442; color: #cdd5e0; }
+#wmx-panel .wmx-tab:hover:not(.wmx-tab-on) { background: var(--wmx-hover); color: var(--wmx-text-dim); }
 #wmx-panel .wmx-tab.wmx-tab-on {
   position: relative;
   background: linear-gradient(180deg, #2e5fb8 0%, #244b91 100%);
@@ -201,10 +252,10 @@
 }
 #wmx-panel .wmx-tab i {
   font-style: normal; font-size: 11px; font-weight: 600;
-  background: #333c4c; color: #b6c0d0;
-  border-radius: 9px; padding: 1px 7px; min-width: 20px; text-align: center;
+  background: #333c4c; color: var(--wmx-text-dim);
+  border-radius: 999px; padding: 1px 7px; min-width: 20px; text-align: center;
 }
-#wmx-panel .wmx-tab.wmx-tab-on i { background: #3b6fe0; color: #fff; }
+#wmx-panel .wmx-tab.wmx-tab-on i { background: var(--wmx-accent); color: #fff; }
 
 /* ---------- 视图容器 ---------- */
 #wmx-panel .wmx-view {
@@ -218,24 +269,12 @@
 #wmx-panel .wmx-view::-webkit-scrollbar-thumb { background: #3a4252; border-radius: 5px; }
 #wmx-panel .wmx-view::-webkit-scrollbar-track { background: transparent; }
 
-#wmx-panel .wmx-sec { padding: 12px 0 10px; border-bottom: 1px dashed #313846; }
+#wmx-panel .wmx-sec { padding: 12px 0 10px; border-bottom: 1px dashed var(--wmx-border-2); }
 #wmx-panel .wmx-sec:last-child { border-bottom: 0; }
-#wmx-panel .wmx-range-fetch {
-  margin-top: 4px; padding: 13px 11px 12px;
-  border: 1px solid #33415a; border-radius: 10px;
-  background: linear-gradient(145deg, #1d2635, #191d25);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, .12);
-}
-#wmx-panel .wmx-range-fetch .wmx-sec-h {
-  margin-bottom: 10px; padding-left: 8px;
-  border-left: 3px solid #4d83f1;
-}
-#wmx-panel .wmx-range-fetch .wmx-selected-accounts { background: #171c25; }
-#wmx-panel .wmx-range-fetch .wmx-actions { margin-top: 10px; }
 
 #wmx-panel .wmx-tag {
   flex: 0 0 auto; padding: 1px 6px; border-radius: 999px;
-  font-size: 10.5px; line-height: 1.6; border: 1px solid transparent;
+  font-size: 11px; line-height: 1.6; border: 1px solid transparent;
 }
 #wmx-panel .wmx-tag-c { color: #8fd0a8; background: #1d3328; border-color: #2b5140; }
 #wmx-panel .wmx-tag-s { color: #9fb2d0; background: #222b3b; border-color: #33405480; }
@@ -247,11 +286,11 @@
 
 #wmx-panel .wmx-selected-accounts {
   max-height: 150px; overflow-y: auto;
-  border: 1px solid #333a47; border-radius: 8px; background: #191d25;
+  border: 1px solid var(--wmx-border); border-radius: 8px; background: var(--wmx-surface-2);
 }
 #wmx-panel .wmx-selected-account {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px; border-bottom: 1px solid #232936;
+  padding: 8px 10px; border-bottom: 1px solid var(--wmx-divider);
 }
 #wmx-panel .wmx-selected-account:last-child { border-bottom: 0; }
 #wmx-panel .wmx-selected-account-dot {
@@ -260,18 +299,19 @@
 }
 #wmx-panel .wmx-selected-account-name {
   flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: #e8ebf0; font-weight: 600;
+  color: var(--wmx-text); font-weight: 600;
 }
 #wmx-panel .wmx-selected-account-id {
   flex: 0 1 auto; max-width: 130px; overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap; color: #6b7688; font-size: 11px;
+  white-space: nowrap; color: var(--wmx-text-faint); font-size: 11px;
   font-family: ui-monospace, Consolas, monospace;
 }
 
 #wmx-panel .wmx-sec-h {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  margin-bottom: 8px; color: #fff; font-size: 13px;
+  margin-bottom: 8px; color: var(--wmx-text-hi); font-size: 13px;
 }
+#wmx-panel .wmx-sec-actions { display: inline-flex; align-items: center; gap: 6px; }
 #wmx-panel .wmx-sec-h b {
   display: inline-flex; align-items: center; gap: 6px;
   letter-spacing: .1px;
@@ -279,38 +319,38 @@
 #wmx-panel .wmx-sec-h b::before {
   content: "";
   width: 3px; height: 14px; border-radius: 3px;
-  background: #4c8dff; box-shadow: 0 0 7px rgba(76, 141, 255, .32);
+  background: var(--wmx-accent-soft); box-shadow: 0 0 7px rgba(76, 141, 255, .32);
 }
-#wmx-panel .wmx-status { color: #7fd1a8; font-size: 11.5px; font-weight: 400; text-align: right; }
+#wmx-panel .wmx-status { color: #7fd1a8; font-size: 12px; font-weight: 400; text-align: right; }
 #wmx-panel .wmx-count {
-  color: #9da9bc; font-size: 11px; font-weight: 500;
-  padding: 2px 7px; border: 1px solid #374254; border-radius: 999px;
+  color: var(--wmx-text-muted); font-size: 11px; font-weight: 500;
+  padding: 2px 7px; border: 1px solid var(--wmx-border-ctrl); border-radius: 999px;
   background: #242b38; white-space: nowrap;
 }
 
 /* ---------- 公众号列表 ---------- */
 #wmx-panel .wmx-accounts {
   max-height: 240px; overflow-y: auto;
-  border: 1px solid #333a47; border-radius: 8px; background: #191d25;
+  border: 1px solid var(--wmx-border); border-radius: 8px; background: var(--wmx-surface-2);
 }
 #wmx-panel .wmx-accounts::-webkit-scrollbar { width: 8px; }
 #wmx-panel .wmx-accounts::-webkit-scrollbar-thumb { background: #3a4252; border-radius: 4px; }
 
 #wmx-panel .wmx-acc {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; cursor: pointer; border-bottom: 1px solid #232936;
+  padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--wmx-divider);
 }
 #wmx-panel .wmx-acc:last-child { border-bottom: 0; }
-#wmx-panel .wmx-acc:hover { background: #212734; }
+#wmx-panel .wmx-acc:hover { background: var(--wmx-row-hover); }
 #wmx-panel .wmx-acc-icon { flex: 0 0 auto; font-size: 15px; line-height: 1; }
 #wmx-panel .wmx-accname { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #wmx-panel .wmx-accid {
-  flex: 0 1 auto; max-width: 130px; color: #6b7688; font-size: 11px;
+  flex: 0 1 auto; max-width: 130px; color: var(--wmx-text-faint); font-size: 11px;
   font-family: ui-monospace, Consolas, monospace;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-#wmx-panel .wmx-empty { padding: 14px 12px; color: #78839a; font-size: 12px; }
+#wmx-panel .wmx-empty { padding: 14px 12px; color: var(--wmx-text-faint); font-size: 12px; }
 
 #wmx-panel .wmx-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 9px; }
 
@@ -319,83 +359,102 @@
 #wmx-panel .wmx-addbox .wmx-primary { flex: 0 0 auto; padding: 5px 14px; }
 #wmx-panel #wmx-acc-kw { width: 100%; box-sizing: border-box; margin-bottom: 7px; }
 #wmx-panel .wmx-sub {
-  margin: 11px 0 6px; color: #9aa6ba; font-size: 11.5px; font-weight: 600;
+  margin: 11px 0 6px; color: var(--wmx-text-muted); font-size: 12px; font-weight: 600;
 }
 #wmx-panel .wmx-count-ok { color: #7fd1a8; }
+#wmx-panel .wmx-count-err {
+  color: #ff9a9a; border-color: #7a3a3a; background: #3a2020; cursor: pointer;
+}
+#wmx-panel .wmx-count-err:hover { color: #ffb3b3; border-color: #9a4a4a; background: #452525; }
 #wmx-panel .wmx-searchres {
-  margin-top: 8px; border: 1px solid #333a47; border-radius: 8px;
-  background: #191d25; max-height: 272px; overflow-y: auto;
+  margin-top: 8px; border: 1px solid var(--wmx-border); border-radius: 8px;
+  background: var(--wmx-surface-2); max-height: 272px; overflow-y: auto;
 }
 #wmx-panel .wmx-searchres-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 10px; border-bottom: 1px solid #262d3a;
-  color: #cfd7e4; font-size: 11.5px; position: sticky; top: 0;
-  background: #191d25; z-index: 1;
+  padding: 7px 10px; border-bottom: 1px solid var(--wmx-divider);
+  color: var(--wmx-text-dim); font-size: 12px; position: sticky; top: 0;
+  background: var(--wmx-surface-2); z-index: 1;
 }
 #wmx-panel .wmx-searchres-close {
   width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%;
   color: #8f9bb0; background: transparent; font-size: 18px; line-height: 20px;
 }
 #wmx-panel .wmx-searchres-close:hover:not(:disabled) {
-  color: #fff; background: #333c4c;
+  color: var(--wmx-text-hi); background: var(--wmx-hover);
 }
 #wmx-panel .wmx-sr {
   display: flex; gap: 9px; align-items: flex-start;
-  padding: 9px 10px; border-bottom: 1px solid #262d3a;
+  padding: 9px 10px; border-bottom: 1px solid var(--wmx-divider);
 }
 #wmx-panel .wmx-sr:last-child { border-bottom: 0; }
 #wmx-panel .wmx-sr-av {
-  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 7px;
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 8px;
   object-fit: cover; background: #2b3140;
 }
 #wmx-panel .wmx-sr-avt {
   display: inline-flex; align-items: center; justify-content: center;
-  color: #cfd7e4; font-size: 15px; font-weight: 600;
+  color: var(--wmx-text-dim); font-size: 15px; font-weight: 600;
 }
 #wmx-panel .wmx-sr-main { flex: 1 1 auto; min-width: 0; }
 #wmx-panel .wmx-sr-name {
-  color: #fff; font-size: 13px; font-weight: 600;
+  color: var(--wmx-text-hi); font-size: 13px; font-weight: 600;
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
 }
 #wmx-panel .wmx-sr-tag {
-  font-style: normal; font-weight: 400; font-size: 10.5px;
-  color: #8f9bb0; background: #262d3a; border-radius: 4px; padding: 1px 5px;
+  font-style: normal; font-weight: 400; font-size: 11px;
+  color: #8f9bb0; background: var(--wmx-divider); border-radius: 4px; padding: 1px 5px;
 }
 #wmx-panel .wmx-sr-v { color: #7fd1a8; background: #1f3a30; }
-#wmx-panel .wmx-sr-id { color: #7d8798; font-size: 11px; margin-top: 2px; }
+#wmx-panel .wmx-sr-id { color: var(--wmx-text-muted); font-size: 11px; margin-top: 2px; }
 #wmx-panel .wmx-sr-desc {
-  color: #6b7688; font-size: 11px; line-height: 1.45; margin-top: 3px;
+  color: var(--wmx-text-faint); font-size: 11px; line-height: 1.45; margin-top: 3px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 #wmx-panel .wmx-sr-add { flex: 0 0 auto; align-self: center; }
-#wmx-panel .wmx-sr-in { flex: 0 0 auto; align-self: center; color: #7fd1a8; font-size: 11.5px; }
+#wmx-panel .wmx-sr-in { flex: 0 0 auto; align-self: center; color: #7fd1a8; font-size: 12px; }
 #wmx-panel .wmx-shelf-add { flex: 0 0 auto; align-self: center; white-space: nowrap; }
 
 #wmx-panel button {
-  font-family: inherit; cursor: pointer; border-radius: 7px;
-  border: 1px solid #3b4354; background: #2b3140; color: #dfe5ee;
-  padding: 6px 12px; font-size: 12.5px; transition: background .15s ease, border-color .15s ease;
+  font-family: inherit; cursor: pointer; border-radius: 8px;
+  border: 1px solid var(--wmx-border-ctrl); background: var(--wmx-surface); color: var(--wmx-text);
+  padding: 6px 12px; font-size: 13px; transition: background .15s ease, border-color .15s ease;
 }
-#wmx-panel button:hover:not(:disabled) { background: #354056; border-color: #4a5568; }
+#wmx-panel button:hover:not(:disabled) { background: var(--wmx-hover); border-color: #4a5568; }
 #wmx-panel button:disabled { opacity: .55; cursor: not-allowed; }
-#wmx-panel .wmx-primary { background: #3b6fe0; border-color: #3b6fe0; color: #fff; font-weight: 600; padding: 7px 20px; }
-#wmx-panel .wmx-primary:hover:not(:disabled) { background: #2f5fc9; border-color: #2f5fc9; }
-#wmx-panel .wmx-mini { padding: 3px 9px; font-size: 11.5px; }
+#wmx-panel .wmx-primary { background: var(--wmx-accent); border-color: var(--wmx-accent); color: #fff; font-weight: 600; padding: 7px 20px; }
+#wmx-panel .wmx-primary:hover:not(:disabled) { background: var(--wmx-accent-hover); border-color: var(--wmx-accent-hover); }
+#wmx-panel .wmx-mini { padding: 3px 9px; font-size: 12px; }
+#wmx-panel .wmx-eye { position: relative; padding: 3px 8px; font-size: 13px; line-height: 1; }
+#wmx-panel .wmx-eye.wmx-eye-off { opacity: .5; }
+#wmx-panel .wmx-eye.wmx-eye-off::after {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 1.1em; height: 2px; border-radius: 2px; background: currentColor;
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
 
-#wmx-panel .wmx-opts { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; color: #b9c2d0; font-size: 12.5px; }
+/* 键盘焦点（可见态，服务于无障碍） */
+#wmx-panel button:focus-visible,
+#wmx-panel a:focus-visible,
+#wmx-panel .wmx-info:focus-visible {
+  outline: 2px solid var(--wmx-accent-soft);
+  outline-offset: 1px;
+}
+
+#wmx-panel .wmx-opts { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; color: var(--wmx-text-dim); font-size: 13px; }
 #wmx-panel .wmx-opts label { display: inline-flex; align-items: center; gap: 6px; }
 #wmx-panel .wmx-num,
 #wmx-panel .wmx-txt,
 #wmx-panel .wmx-date {
-  background: #191d25; border: 1px solid #3b4354; color: #e8ebf0;
-  border-radius: 6px; padding: 4px 7px; font-family: inherit; font-size: 12.5px; outline: none;
+  background: var(--wmx-surface-2); border: 1px solid var(--wmx-border-ctrl); color: var(--wmx-text);
+  border-radius: 8px; padding: 4px 7px; font-family: inherit; font-size: 13px; outline: none;
 }
 #wmx-panel .wmx-num { width: 68px; }
 #wmx-panel .wmx-txt { width: 150px; }
 #wmx-panel .wmx-date { width: 138px; }
-#wmx-panel .wmx-num:focus, #wmx-panel .wmx-txt:focus, #wmx-panel .wmx-date:focus { border-color: #4c8dff; }
+#wmx-panel .wmx-num:focus, #wmx-panel .wmx-txt:focus, #wmx-panel .wmx-date:focus { border-color: var(--wmx-accent-soft); }
 
-#wmx-panel .wmx-hint { margin-top: 7px; color: #6b7688; font-size: 11.5px; line-height: 1.55; }
+#wmx-panel .wmx-hint { margin-top: 7px; color: var(--wmx-text-faint); font-size: 12px; line-height: 1.55; }
 #wmx-panel .wmx-tipline { display: flex; align-items: center; gap: 6px; }
 #wmx-panel .wmx-info {
   position: relative;
@@ -409,8 +468,8 @@
   position: absolute; z-index: 5;
   left: 21px; top: 50%; transform: translateY(-50%);
   width: 220px; padding: 7px 9px;
-  border: 1px solid #465066; border-radius: 6px;
-  background: #252b38; color: #dfe5ee;
+  border: 1px solid #465066; border-radius: 8px;
+  background: #252b38; color: var(--wmx-text);
   box-shadow: 0 5px 16px rgba(0, 0, 0, .28);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -427,56 +486,57 @@
 /* ---------- 日志 ---------- */
 #wmx-panel .wmx-log {
   height: 132px; overflow-y: auto;
-  background: #14171e; border: 1px solid #2c3341; border-radius: 8px;
-  padding: 7px 9px; font-family: ui-monospace, Consolas, "Courier New", monospace; font-size: 11.5px;
+  background: var(--wmx-surface-3); border: 1px solid var(--wmx-border-2); border-radius: 8px;
+  padding: 7px 9px; font-family: ui-monospace, Consolas, "Courier New", monospace; font-size: 12px;
 }
 #wmx-panel .wmx-log::-webkit-scrollbar { width: 8px; }
 #wmx-panel .wmx-log::-webkit-scrollbar-thumb { background: #333c4c; border-radius: 4px; }
-#wmx-panel .wmx-logline { color: #92a0b5; white-space: pre-wrap; word-break: break-all; }
+#wmx-panel .wmx-logline { color: var(--wmx-text-muted); white-space: pre-wrap; word-break: break-all; }
 #wmx-panel .wmx-logline.wmx-ok { color: #7fd1a8; }
 #wmx-panel .wmx-logline.wmx-warn { color: #e6c26a; }
 #wmx-panel .wmx-logline.wmx-err { color: #f08a8a; }
 
 /* ---------- 文章列表（窄栏两行式） ---------- */
-#wmx-panel .wmx-result { border-top: 1px solid #262d3a; }
+#wmx-panel .wmx-result { border-top: 1px solid var(--wmx-divider); }
 #wmx-panel .wmx-art {
-  padding: 9px 2px; border-bottom: 1px solid #262d3a;
+  padding: 9px 2px; border-bottom: 1px solid var(--wmx-divider);
 }
-#wmx-panel .wmx-art:hover { background: #20252f; }
+#wmx-panel .wmx-art:hover { background: var(--wmx-row-hover); }
 #wmx-panel .wmx-art-group {
-  border-bottom: 1px solid #333a47;
+  border-bottom: 1px solid var(--wmx-border);
 }
 #wmx-panel .wmx-art-group:last-child { border-bottom: 0; }
 #wmx-panel .wmx-art-group-title {
   display: flex; align-items: baseline; gap: 8px;
   margin: 0; padding: 13px 2px 8px;
-  color: #fff; font-size: 15px; line-height: 1.4; font-weight: 700;
+  color: var(--wmx-text-hi); font-size: 15px; line-height: 1.4; font-weight: 700;
 }
 #wmx-panel .wmx-art-group-count {
-  color: #7d8798; font-size: 11.5px; font-weight: 400;
+  color: var(--wmx-text-muted); font-size: 12px; font-weight: 400;
 }
+#wmx-panel .wmx-art-group-eye { margin-left: auto; flex: 0 0 auto; }
 #wmx-panel .wmx-art-t {
-  display: block; color: #e8ebf0; text-decoration: none; font-size: 13px; line-height: 1.5;
+  display: block; color: var(--wmx-text); text-decoration: none; font-size: 13px; line-height: 1.5;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-#wmx-panel .wmx-art-t:hover { color: #7fb0ff; }
+#wmx-panel .wmx-art-t:hover { color: var(--wmx-link); }
 #wmx-panel .wmx-art-m {
   display: flex; align-items: center; gap: 8px; margin-top: 3px;
-  font-size: 11.5px; color: #78839a;
+  font-size: 12px; color: var(--wmx-text-faint);
 }
 #wmx-panel .wmx-art-a {
   flex: 0 1 auto; max-width: 45%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: #9aa6b8;
+  color: var(--wmx-text-muted);
 }
 #wmx-panel .wmx-art-d { flex: 0 0 auto; font-family: ui-monospace, Consolas, monospace; }
-#wmx-panel .wmx-art-o { margin-left: auto; flex: 0 0 auto; color: #7fb0ff; text-decoration: none; }
+#wmx-panel .wmx-art-o { margin-left: auto; flex: 0 0 auto; color: var(--wmx-link); text-decoration: none; }
 #wmx-panel .wmx-art-o:hover { text-decoration: underline; }
-#wmx-panel .wmx-art-o.wmx-no { color: #5b6577; }
+#wmx-panel .wmx-art-o.wmx-no { color: var(--wmx-text-faint); }
 #wmx-panel .wmx-more-art {
   display: block; width: calc(100% - 4px); margin: 5px 2px 10px;
-  padding: 6px; color: #9ebcff; background: #252d3b; border-color: #3d4d6a;
-  font-size: 11.5px;
+  padding: 6px; color: var(--wmx-link-strong); background: #252d3b; border-color: #3d4d6a;
+  font-size: 12px;
 }
 #wmx-panel .wmx-more-art:hover { background: #2e3a50; }
 
@@ -484,7 +544,7 @@
 #wmx-panel .wmx-env {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 8px 0 0; padding: 7px 11px;
-  border-radius: 8px; font-size: 11.5px; line-height: 1.55;
+  border-radius: 8px; font-size: 12px; line-height: 1.55;
   background: #2a2436; border: 1px solid #4a3f63; color: #c3b6dd;
 }
 #wmx-panel .wmx-env[hidden] { display: none; }
@@ -498,15 +558,15 @@
 #wmx-panel .wmx-ctx[hidden] { display: none; }
 #wmx-panel .wmx-ctx-h {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-size: 11.5px; color: #8b95a7; margin-bottom: 5px;
+  font-size: 12px; color: var(--wmx-text-muted); margin-bottom: 5px;
 }
-#wmx-panel .wmx-ctx-h b { color: #fff; font-size: 12.5px; font-weight: 600; }
+#wmx-panel .wmx-ctx-h b { color: var(--wmx-text-hi); font-size: 13px; font-weight: 600; }
 #wmx-panel .wmx-ctx-t {
-  font-size: 12.5px; line-height: 1.5; font-weight: 500; color: #e8ebf0;
+  font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--wmx-text);
   max-height: 3em; overflow: hidden; margin-bottom: 4px; word-break: break-all;
 }
 #wmx-panel .wmx-ctx-m {
-  font-size: 11.5px; color: #8b95a7; margin-bottom: 9px;
+  font-size: 12px; color: var(--wmx-text-muted); margin-bottom: 9px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 #wmx-panel .wmx-qr-dim { color: #6f7a8c; }
@@ -519,19 +579,19 @@
 
 /* ---------- 浅色模式 ---------- */
 #wmx-panel.wmx-light {
-  background: #f6f8fb; color: #243044; border-left-color: #d7deea;
+  background: var(--wmx-bg); color: var(--wmx-text); border-left-color: var(--wmx-border);
   box-shadow: -16px 0 44px rgba(31, 47, 70, .18);
 }
 #wmx-panel.wmx-light .wmx-head,
 #wmx-panel.wmx-light .wmx-loginbar,
-#wmx-panel.wmx-light .wmx-tab { background: #fff; border-color: #dbe2ec; }
+#wmx-panel.wmx-light .wmx-tab { background: var(--wmx-surface); border-color: #dbe2ec; }
 #wmx-panel.wmx-light .wmx-title,
 #wmx-panel.wmx-light .wmx-sec-h,
 #wmx-panel.wmx-light .wmx-tab.wmx-tab-on,
 #wmx-panel.wmx-light .wmx-art-group-title,
-#wmx-panel.wmx-light .wmx-sr-name { color: #1f2b3d; }
-#wmx-panel.wmx-light .wmx-tab { color: #708096; }
-#wmx-panel.wmx-light .wmx-tab:hover:not(.wmx-tab-on) { background: #eef3fa; color: #33445d; }
+#wmx-panel.wmx-light .wmx-sr-name { color: var(--wmx-text-hi); }
+#wmx-panel.wmx-light .wmx-tab { color: var(--wmx-text-muted); }
+#wmx-panel.wmx-light .wmx-tab:hover:not(.wmx-tab-on) { background: var(--wmx-hover); color: #33445d; }
 #wmx-panel.wmx-light .wmx-tab.wmx-tab-on {
   background: linear-gradient(180deg, #e5efff 0%, #cfe0fb 100%);
   color: #174784;
@@ -544,18 +604,13 @@
   background: #3568bd;
   box-shadow: 0 0 8px rgba(53, 104, 189, .45);
 }
-#wmx-panel.wmx-light .wmx-view { background: #f6f8fb; }
-#wmx-panel.wmx-light .wmx-sec { border-bottom-color: #dce3ed; }
-#wmx-panel.wmx-light .wmx-range-fetch {
-  border-color: #c8d7ee; background: linear-gradient(145deg, #fff, #f1f6fd);
-  box-shadow: 0 8px 20px rgba(67, 97, 139, .1);
-}
-#wmx-panel.wmx-light .wmx-range-fetch .wmx-selected-accounts { background: #fff; }
+#wmx-panel.wmx-light .wmx-view { background: var(--wmx-bg); }
+#wmx-panel.wmx-light .wmx-sec { border-bottom-color: var(--wmx-border-2); }
 #wmx-panel.wmx-light .wmx-accounts,
 #wmx-panel.wmx-light .wmx-selected-accounts,
-#wmx-panel.wmx-light .wmx-searchres { background: #fff; border-color: #d7deea; }
+#wmx-panel.wmx-light .wmx-searchres { background: var(--wmx-surface-2); border-color: var(--wmx-border); }
 #wmx-panel.wmx-light .wmx-searchres-head {
-  background: #fff; border-bottom-color: #e7ebf2; color: #33445a;
+  background: var(--wmx-surface-2); border-bottom-color: var(--wmx-divider); color: #33445a;
 }
 #wmx-panel.wmx-light .wmx-searchres-close { color: #718097; }
 #wmx-panel.wmx-light .wmx-searchres-close:hover:not(:disabled) {
@@ -564,9 +619,9 @@
 #wmx-panel.wmx-light .wmx-acc,
 #wmx-panel.wmx-light .wmx-selected-account,
 #wmx-panel.wmx-light .wmx-sr,
-#wmx-panel.wmx-light .wmx-art { border-bottom-color: #e7ebf2; }
+#wmx-panel.wmx-light .wmx-art { border-bottom-color: var(--wmx-divider); }
 #wmx-panel.wmx-light .wmx-acc:hover,
-#wmx-panel.wmx-light .wmx-art:hover { background: #f0f5fc; }
+#wmx-panel.wmx-light .wmx-art:hover { background: var(--wmx-row-hover); }
 #wmx-panel.wmx-light .wmx-accname,
 #wmx-panel.wmx-light .wmx-selected-account-name,
 #wmx-panel.wmx-light .wmx-art-t { color: #26364d; }
@@ -575,27 +630,31 @@
 #wmx-panel.wmx-light .wmx-hint,
 #wmx-panel.wmx-light .wmx-sub,
 #wmx-panel.wmx-light .wmx-art-m,
-#wmx-panel.wmx-light .wmx-sr-id { color: #718097; }
+#wmx-panel.wmx-light .wmx-sr-id { color: var(--wmx-text-faint); }
 #wmx-panel.wmx-light .wmx-count {
   color: #58708f; border-color: #d3deec; background: #f1f5fa;
 }
+#wmx-panel.wmx-light .wmx-count-err {
+  color: #c0392b; border-color: #e0b4b0; background: #fdecea; cursor: pointer;
+}
+#wmx-panel.wmx-light .wmx-count-err:hover { color: #a93226; border-color: #d9988f; background: #fbe3e1; }
 #wmx-panel.wmx-light .wmx-sec-h b::before {
   background: #3568bd; box-shadow: 0 0 7px rgba(53, 104, 189, .24);
 }
 #wmx-panel.wmx-light .wmx-txt,
 #wmx-panel.wmx-light .wmx-num,
-#wmx-panel.wmx-light .wmx-date { background: #fff; color: #26364d; border-color: #cbd5e3; }
-#wmx-panel.wmx-light button { background: #edf2f8; color: #34445a; border-color: #cbd5e3; }
+#wmx-panel.wmx-light .wmx-date { background: var(--wmx-surface-2); color: #26364d; border-color: var(--wmx-border-ctrl); }
+#wmx-panel.wmx-light button { background: #edf2f8; color: #34445a; border-color: var(--wmx-border-ctrl); }
 #wmx-panel.wmx-light button:hover:not(:disabled) { background: #e2ebf7; border-color: #aebed5; }
-#wmx-panel.wmx-light .wmx-primary { background: #3b6fe0; color: #fff; border-color: #3b6fe0; }
-#wmx-panel.wmx-light .wmx-primary:hover:not(:disabled) { background: #2f5fc9; }
-#wmx-panel.wmx-light .wmx-log { background: #fff; border-color: #d7deea; }
+#wmx-panel.wmx-light .wmx-primary { background: var(--wmx-accent); color: #fff; border-color: var(--wmx-accent); }
+#wmx-panel.wmx-light .wmx-primary:hover:not(:disabled) { background: var(--wmx-accent-hover); }
+#wmx-panel.wmx-light .wmx-log { background: var(--wmx-surface-3); border-color: var(--wmx-border); }
 #wmx-panel.wmx-light .wmx-logline { color: #687891; }
-#wmx-panel.wmx-light .wmx-art-group { border-bottom-color: #d7deea; }
+#wmx-panel.wmx-light .wmx-art-group { border-bottom-color: var(--wmx-border); }
 #wmx-panel.wmx-light .wmx-more-art { background: #edf3fb; color: #3568bd; border-color: #bfd0e8; }
 #wmx-panel.wmx-light .wmx-theme { background: #eaf0f8; color: #3d587b; }
 #wmx-panel.wmx-light .wmx-info::after {
-  background: #fff; border-color: #c7d3e4; color: #34445a;
+  background: var(--wmx-surface); border-color: #c7d3e4; color: #34445a;
   box-shadow: 0 5px 16px rgba(31, 47, 70, .18);
 }
 #wmx-panel.wmx-light .wmx-env {
@@ -603,20 +662,20 @@
 }
 #wmx-panel.wmx-light .wmx-env .wmx-env-txt { color: #526b8d; }
 #wmx-panel.wmx-light .wmx-ctx {
-  background: #fff; border-color: #d7deea;
+  background: var(--wmx-surface); border-color: var(--wmx-border);
 }
 #wmx-panel.wmx-light .wmx-ctx-h,
-#wmx-panel.wmx-light .wmx-ctx-m { color: #718097; }
+#wmx-panel.wmx-light .wmx-ctx-m { color: var(--wmx-text-faint); }
 #wmx-panel.wmx-light .wmx-ctx-h b,
 #wmx-panel.wmx-light .wmx-ctx-t { color: #26364d; }
-#wmx-panel.wmx-light .wmx-project-link { color: #3568bd; }
-#wmx-panel.wmx-light .wmx-project-link:hover { color: #244e99; }
+#wmx-panel.wmx-light .wmx-project-link { color: var(--wmx-link); }
+#wmx-panel.wmx-light .wmx-project-link:hover { color: var(--wmx-link-strong); }
 
 /* ---------- 面板外部组件主题 ---------- */
 #wmx-dock.wmx-light .wmx-dock-btn {
   background: #fff; color: #2d405a;
-  border-left: 1px solid #d7deea; border-top: 1px solid #d7deea;
-  border-bottom: 1px solid #d7deea;
+  border-left: 1px solid var(--wmx-border); border-top: 1px solid var(--wmx-border);
+  border-bottom: 1px solid var(--wmx-border);
   box-shadow: -3px 2px 16px rgba(31, 47, 70, .2);
 }
 #wmx-dock.wmx-light .wmx-dock-btn:hover { background: #edf3fb; }
