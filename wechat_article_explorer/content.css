@@ -202,6 +202,18 @@
 
 #wmx-panel .wmx-sec { padding: 12px 0 10px; border-bottom: 1px dashed #313846; }
 #wmx-panel .wmx-sec:last-child { border-bottom: 0; }
+#wmx-panel .wmx-range-fetch {
+  margin-top: 4px; padding: 13px 11px 12px;
+  border: 1px solid #33415a; border-radius: 10px;
+  background: linear-gradient(145deg, #1d2635, #191d25);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .12);
+}
+#wmx-panel .wmx-range-fetch .wmx-sec-h {
+  margin-bottom: 10px; padding-left: 8px;
+  border-left: 3px solid #4d83f1;
+}
+#wmx-panel .wmx-range-fetch .wmx-selected-accounts { background: #171c25; }
+#wmx-panel .wmx-range-fetch .wmx-actions { margin-top: 10px; }
 
 #wmx-panel .wmx-tag {
   flex: 0 0 auto; padding: 1px 6px; border-radius: 999px;
@@ -281,6 +293,19 @@
 #wmx-panel .wmx-searchres {
   margin-top: 8px; border: 1px solid #333a47; border-radius: 8px;
   background: #191d25; max-height: 272px; overflow-y: auto;
+}
+#wmx-panel .wmx-searchres-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px; border-bottom: 1px solid #262d3a;
+  color: #cfd7e4; font-size: 11.5px; position: sticky; top: 0;
+  background: #191d25; z-index: 1;
+}
+#wmx-panel .wmx-searchres-close {
+  width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%;
+  color: #8f9bb0; background: transparent; font-size: 18px; line-height: 20px;
+}
+#wmx-panel .wmx-searchres-close:hover:not(:disabled) {
+  color: #fff; background: #333c4c;
 }
 #wmx-panel .wmx-sr {
   display: flex; gap: 9px; align-items: flex-start;
@@ -451,9 +476,21 @@
 #wmx-panel.wmx-light .wmx-tab.wmx-tab-on { background: #f6f8fb; border-bottom-color: #f6f8fb; }
 #wmx-panel.wmx-light .wmx-view { background: #f6f8fb; }
 #wmx-panel.wmx-light .wmx-sec { border-bottom-color: #dce3ed; }
+#wmx-panel.wmx-light .wmx-range-fetch {
+  border-color: #c8d7ee; background: linear-gradient(145deg, #fff, #f1f6fd);
+  box-shadow: 0 8px 20px rgba(67, 97, 139, .1);
+}
+#wmx-panel.wmx-light .wmx-range-fetch .wmx-selected-accounts { background: #fff; }
 #wmx-panel.wmx-light .wmx-accounts,
 #wmx-panel.wmx-light .wmx-selected-accounts,
 #wmx-panel.wmx-light .wmx-searchres { background: #fff; border-color: #d7deea; }
+#wmx-panel.wmx-light .wmx-searchres-head {
+  background: #fff; border-bottom-color: #e7ebf2; color: #33445a;
+}
+#wmx-panel.wmx-light .wmx-searchres-close { color: #718097; }
+#wmx-panel.wmx-light .wmx-searchres-close:hover:not(:disabled) {
+  color: #26364d; background: #edf2f8;
+}
 #wmx-panel.wmx-light .wmx-acc,
 #wmx-panel.wmx-light .wmx-selected-account,
 #wmx-panel.wmx-light .wmx-sr,
