@@ -523,8 +523,13 @@
 
   async function pushToWereadShelf(bookIds) {
     const ids = (bookIds || []).filter(Boolean);
-    if (!ids.length) { log('没有选中的本地公众号。', 'warn'); return; }
+    if (!ids.length) {
+      toast('没有选中的本地公众号。', 'err');
+      log('没有选中的本地公众号。', 'warn');
+      return;
+    }
     let success = 0;
+    let firstErr = '';
     for (let i = 0; i < ids.length; i++) {
       try {
         await api(EP.addToShelf, {
@@ -535,11 +540,20 @@
         success++;
         log('  · 已加入书架：' + ids[i], 'ok');
       } catch (e) {
+        if (!firstErr) firstErr = errHint(e);
         log('  · 加入书架失败 ' + ids[i] + '：' + errHint(e), 'warn');
       }
       if (i < ids.length - 1) await sleep(DELAY_LIST);
     }
-    log('加入书架完成 ' + success + '/' + ids.length + '。刷新关注列表即可看到。', success ? 'ok' : 'warn');
+    const done = success + '/' + ids.length;
+    if (success === ids.length) {
+      toast('已全部添加到公众号关注（' + done + '）。', 'ok');
+    } else if (success) {
+      toast('部分添加到公众号关注（' + done + '）。' + firstErr, 'err');
+    } else {
+      toast('添加到公众号关注失败（0/' + ids.length + '）。' + firstErr, 'err');
+    }
+    log('加入书架完成 ' + done + '。刷新关注列表即可看到。', success ? 'ok' : 'warn');
   }
 
   /* ---------------- 业务动作 ---------------- */
@@ -972,6 +986,27 @@
     box.scrollTop = box.scrollHeight;
   }
 
+  let _toastBox = null;
+  function toast(msg, kind) {
+    if (!_toastBox || !_toastBox.parentNode) {
+      _toastBox = document.createElement('div');
+      _toastBox.id = 'wmx-toast';
+      document.body.appendChild(_toastBox);
+    }
+    _toastBox.classList.toggle('wmx-light', state.theme === 'light');
+    const item = document.createElement('div');
+    item.className = 'wmx-toast-item' + (kind === 'ok' ? ' wmx-toast-ok' : kind === 'err' ? ' wmx-toast-err' : '');
+    item.textContent = msg;
+    _toastBox.appendChild(item);
+    while (_toastBox.children.length > 4) _toastBox.removeChild(_toastBox.firstChild);
+    requestAnimationFrame(() => requestAnimationFrame(() => item.classList.add('wmx-toast-in')));
+    setTimeout(() => {
+      item.classList.remove('wmx-toast-in');
+      item.classList.add('wmx-toast-out');
+      setTimeout(() => { if (item.parentNode) item.parentNode.removeChild(item); }, 200);
+    }, 2600);
+  }
+
   function setBusy(b, text) {
     state.running = b;
     const btn = document.getElementById('wmx-run');
@@ -1230,32 +1265,38 @@
   async function addFromInput() {
     const input = document.getElementById('wmx-add-input');
     const parsed = parseMpInput(input ? input.value : '');
-    if (!parsed.ok) { log(addReasonHint(parsed.reason), 'warn'); return; }
-    if (state.accounts.some((a) => a.bookId === parsed.bookId)) {
-      log('这个号已经在列表里了：' + parsed.bookId, 'warn');
+    if (!parsed.ok) {
+      const hint = addReasonHint(parsed.reason);
+      toast(hint, 'err');
+      log(hint, 'warn');
+      return;
+    }
+    if (state.custom.some((a) => a.bookId === parsed.bookId)) {
+      toast('这个号已经在文章查看范围里了。', 'err');
+      log('这个号已经在文章查看范围里了：' + parsed.bookId, 'warn');
       return;
     }
 
-    let title = '';
+    // 先立即加入并给出反馈，名称和文章校验放到后台补全，避免接口卡住导致「没反应」
+    const record = await addCustomAccount(parsed.bookId, '', parsed.from);
+    if (!record) {
+      toast('添加失败：这个号已经在列表里了。', 'err');
+      return;
+    }
+    if (input) input.value = '';
+    toast('已添加到文章查看范围：' + (record.title || record.bookId), 'ok');
+
     if (state.login === 'guest') {
       log('当前未登录，先保存公众号标识；登录后拉取文章会补全名称。', 'warn');
     } else {
-      try {
-        title = await fetchAccountName(parsed.bookId);
-        if (title) log('号名：' + title, 'ok');
-      } catch (e) {
-        log('取号名失败：' + errHint(e), 'warn');
-      }
-      try {
-        const count = await probeFirstPage(parsed.bookId);
+      fetchAccountName(parsed.bookId).then((title) => {
+        if (title) { setAccountTitle(parsed.bookId, title); log('号名：' + title, 'ok'); }
+      }).catch((e) => log('取号名失败：' + errHint(e), 'warn'));
+      probeFirstPage(parsed.bookId).then((count) => {
         log(count ? '验证通过：首页可读取 ' + count + ' 篇文章。' :
           '该公众号首页返回 0 篇，可能尚未被微信读书收录。', count ? 'ok' : 'warn');
-      } catch (e) {
-        log('文章接口验证失败：' + errHint(e), 'warn');
-      }
+      }).catch((e) => log('文章接口验证失败：' + errHint(e), 'warn'));
     }
-    const record = await addCustomAccount(parsed.bookId, title, parsed.from);
-    if (record && input) input.value = '';
   }
 
   async function addCurrentMpAccount() {
@@ -1263,25 +1304,44 @@
     const biz = readBizFromPage();
     const bookId = bizToBookId(biz);
     if (!bookId) {
+      toast('当前页面没有读到 __biz，请确认是公众号文章页，或粘贴文章长链接添加。', 'err');
       log('当前页面没有读到 __biz，请确认是公众号文章页，或粘贴文章长链接添加。', 'warn');
       return;
     }
-    let title = current && current.account || '';
-    if (state.login !== 'guest') {
-      try { title = await fetchAccountName(bookId) || title; } catch (e) { /* 后续拉取时补全 */ }
+    if (state.custom.some((a) => a.bookId === bookId)) {
+      toast('这个号已经在文章查看范围里了。', 'err');
+      log('这个号已经在文章查看范围里了：' + bookId, 'warn');
+      return;
     }
-    await addCustomAccount(bookId, title, 'page');
+    let title = current && current.account || '';
+    const record = await addCustomAccount(bookId, title, 'page');
+    if (record) {
+      toast('已添加到文章查看范围：' + (title || bookId), 'ok');
+    } else {
+      toast('添加失败：这个号已经在列表里了。', 'err');
+    }
+    if (state.login !== 'guest') {
+      fetchAccountName(bookId).then((t) => {
+        if (t) setAccountTitle(bookId, t);
+      }).catch(() => { /* 后续拉取时补全 */ });
+    }
   }
 
   async function pushSelectedCustom() {
     const ids = state.custom.map((a) => a.bookId);
     if (!ids.length) {
+      toast('文章查看范围为空，暂时没有可添加到公众号关注的号。', 'err');
       log('文章查看范围为空，暂时没有可加入书架的公众号。', 'warn');
       return;
     }
     if (state.login !== 'logged') {
       const ok = await checkLogin(true);
-      if (!ok) { log('需要先登录微信读书才能加入书架。', 'warn'); startLoginFlow(); return; }
+      if (!ok) {
+        toast('需要先登录微信读书才能添加到公众号关注。', 'err');
+        log('需要先登录微信读书才能加入书架。', 'warn');
+        startLoginFlow();
+        return;
+      }
     }
     await pushToWereadShelf(ids);
   }
@@ -1426,7 +1486,7 @@
       '<button class="wmx-searchres-close" id="wmx-searchres-close" type="button" aria-label="关闭搜索结果">×</button></div>' +
       state.search.list.map((item, index) => {
       const type = item.serviceType === 1 ? '服务号' : item.serviceType === 2 ? '企业号' : '订阅号';
-      const exists = state.accounts.some((a) => a.bookId === item.bookId);
+      const exists = state.custom.some((a) => a.bookId === item.bookId);
       return '<div class="wmx-sr">' +
         (item.avatar
           ? '<img class="wmx-sr-av" src="' + esc(item.avatar) + '" data-ch="' + esc(item.name) + '" referrerpolicy="no-referrer" alt="">'
@@ -1751,14 +1811,14 @@
             <span class="wmx-count" id="wmx-search-note" role="button" tabindex="0" title="点击登录公众号后台">需登录公众号后台</span>
           </div>
           <div class="wmx-searchres" id="wmx-searchres" hidden></div>
-          <div class="wmx-sub">② 也可以用文章链接或 __biz 添加</div>
+          <div class="wmx-sub">② 也可以用文章链接或 __biz 添加 <a class="wmx-help" href="https://github.com/drowning-in-codes/VibeProjects/blob/main/wechat_article_explorer/README.md#%E5%85%AC%E4%BC%97%E5%8F%B7%E7%AE%A1%E7%90%86" target="_blank" rel="noopener" data-wmx-tip="__biz 是微信公众号的唯一标识，藏在文章链接的 __biz= 参数里，用于定位并拉取该公众号。点击此图标查看更详细的说明。" aria-label="什么是 __biz，点击查看说明">?</a></div>
           <div class="wmx-addbox">
             <input id="wmx-add-input" class="wmx-txt wmx-add-input" placeholder="文章链接 / __biz / MP_WXS_数字">
             <button class="wmx-btn wmx-primary" id="wmx-add-go">添加</button>
           </div>
           <div class="wmx-actions">
-            <button class="wmx-mini" id="wmx-add-cur" hidden>收录当前页面的公众号</button>
-            <button class="wmx-mini" id="wmx-add-shelf">将查看范围加入微信读书书架</button>
+            <button class="wmx-mini" id="wmx-add-cur" hidden>将当前页面公众号加到查看范围</button>
+            <button class="wmx-mini" id="wmx-add-shelf">将查看范围公众号添加到公众号关注</button>
           </div>
           <div class="wmx-hint wmx-tipline">
             <span class="wmx-info" data-wmx-tip="可粘贴公众号文章完整链接、__biz、fakid 或 MP_WXS_数字添加，不必先关注；在公众号文章页也可以直接点击“收录这个号”。" aria-label="添加公众号说明">i</span>
