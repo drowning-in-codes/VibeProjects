@@ -886,6 +886,7 @@
     page: null,         // 非微信读书页面时，当前页面的文章信息
     view: 'acc',        // acc | art
     shelfHidden: false, // 微信读书关注列表是否隐藏
+    logHidden: false,   // 运行记录是否隐藏
     mpToken: '',
     search: { kw: '', list: [], more: false, loading: false },
     articleVisible: Object.create(null),
@@ -996,6 +997,19 @@
       eye.title = state.shelfHidden ? '显示关注列表' : '隐藏关注列表';
       eye.setAttribute('aria-label', eye.title);
       eye.setAttribute('aria-pressed', state.shelfHidden ? 'true' : 'false');
+    }
+  }
+
+  function toggleLogList() {
+    state.logHidden = !state.logHidden;
+    const box = document.getElementById('wmx-log');
+    if (box) box.hidden = state.logHidden;
+    const eye = document.getElementById('wmx-log-eye');
+    if (eye) {
+      eye.classList.toggle('wmx-eye-off', state.logHidden);
+      eye.title = state.logHidden ? '显示运行记录' : '隐藏运行记录';
+      eye.setAttribute('aria-label', eye.title);
+      eye.setAttribute('aria-pressed', state.logHidden ? 'true' : 'false');
     }
   }
 
@@ -1771,7 +1785,10 @@
         <div class="wmx-sec">
           <div class="wmx-sec-h">
             <b>运行记录</b>
-            <button class="wmx-mini" id="wmx-logclear">清空</button>
+            <span class="wmx-sec-actions">
+              <button class="wmx-mini wmx-eye" id="wmx-log-eye" title="隐藏运行记录" aria-label="隐藏运行记录" aria-pressed="false">👁️</button>
+              <button class="wmx-mini" id="wmx-logclear">清空</button>
+            </span>
           </div>
           <div class="wmx-log" id="wmx-log"></div>
         </div>
@@ -1877,6 +1894,8 @@
     }
     const shelfEye = document.getElementById('wmx-shelf-eye');
     if (shelfEye) shelfEye.addEventListener('click', toggleShelfList);
+    const logEye = document.getElementById('wmx-log-eye');
+    if (logEye) logEye.addEventListener('click', toggleLogList);
     const searchResults = document.getElementById('wmx-searchres');
     if (searchResults) searchResults.addEventListener('click', (ev) => {
       const target = ev.target;
