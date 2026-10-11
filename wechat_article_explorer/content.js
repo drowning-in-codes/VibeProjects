@@ -1679,8 +1679,9 @@
           <div class="wmx-selected-accounts" id="wmx-selected-accounts">
             <div class="wmx-empty">还没有公众号。请先搜索、粘贴文章链接，或从微信读书关注列表添加。</div>
           </div>
-          <div class="wmx-actions">
-            <span class="wmx-count">添加后即可拉取文章</span>
+          <div class="wmx-hint wmx-tipline">
+            <span class="wmx-info" data-wmx-tip="列表中的公众号会作为本次文章拉取范围。添加公众号后，点击下方“拉取文章”即可开始获取。" aria-label="文章查看范围说明">i</span>
+            <span>文章查看范围说明</span>
           </div>
         </div>
 
