@@ -23,6 +23,8 @@
   const WR_ORIGIN = 'https://weread.qq.com';
   const IS_WEREAD = /(^|\.)weread\.qq\.com$/.test(location.hostname);
   const IS_MP = /(^|\.)mp\.weixin\.qq\.com$/.test(location.hostname);
+  const WMX_INSTANCE = Math.random().toString(36).slice(2, 10);
+  const WMX_NS = 'wmx-' + WMX_INSTANCE;
 
   /* ---------------- 常量 ---------------- */
   const EP = {
@@ -495,7 +497,7 @@
         });
         saveCustom();
         rebuildAccounts();
-        log('已加入“文章查看范围”：' + (title || existing.title || bookId), 'ok');
+        log('已加入文章查看范围：' + (title || existing.title || bookId), 'ok');
         return state.custom[state.custom.length - 1];
       }
       if (!existing.title && title) { setAccountTitle(bookId, title); renderAccounts(); }
@@ -537,7 +539,7 @@
       }
       if (i < ids.length - 1) await sleep(DELAY_LIST);
     }
-    log('加入书架完成 ' + success + '/' + ids.length + '。刷新书架即可看到。', success ? 'ok' : 'warn');
+    log('加入书架完成 ' + success + '/' + ids.length + '。刷新关注列表即可看到。', success ? 'ok' : 'warn');
   }
 
   /* ---------------- 业务动作 ---------------- */
@@ -660,7 +662,7 @@
     if (state.login === 'logged') {
       bar.className = 'wmx-loginbar wmx-ok';
       bar.innerHTML = dot + '<b>已登录微信读书</b><span class="wmx-note">' +
-        esc(note || '登录态正常，点「刷新书架」开始') + '</span>';
+        esc(note || '登录态正常，点「刷新关注列表」开始') + '</span>';
     } else if (state.login === 'waiting') {
       bar.className = 'wmx-loginbar wmx-wait';
       bar.innerHTML = dot + '<b>等待扫码…</b><span class="wmx-note">' +
@@ -851,7 +853,7 @@
   async function initLogin(autoTrigger) {
     const ok = await checkLogin(false);
     if (ok) {
-      log('已登录微信读书。点「刷新书架」开始。', 'ok');
+      log('已登录微信读书。点「刷新关注列表」开始。', 'ok');
       return;
     }
     if (autoTrigger) {
@@ -995,16 +997,16 @@
         })).filter((x) => matches(x.a));
         box.innerHTML = shown.length ? shown.map((x) =>
           '<div class="wmx-acc">' +
-            '<span class="wmx-accname" title="' + esc(x.a.title || x.a.bookId) + '">' +
+          '<span class="wmx-selected-account-dot"></span>' +
+            '<span class="wmx-accname" title="' + esc(x.a.title || '未命名公众号') + '">' +
               esc(x.a.title || '(未命名 · 拉取后回填)') + '</span>' +
-            '<span class="wmx-accid" title="' + esc(x.a.bookId) + '">' + esc(x.a.bookId) + '</span>' +
             '<button class="wmx-mini wmx-shelf-add" data-shelf-add="' + x.i + '">添加到查看列表</button>' +
           '</div>'
         ).join('') : '<div class="wmx-empty">没有匹配的公众号。</div>';
       }
     }
     const localCount = document.getElementById('wmx-custom-n');
-    if (localCount) localCount.textContent = '本地 ' + state.custom.length + ' 个';
+    if (localCount) localCount.textContent = '查看范围 ' + state.custom.length + ' 个';
     updateCounts();
   }
 
@@ -1022,7 +1024,7 @@
           (a.source === 'custom' ? '本地' : '书架') + '</span>' +
         '<button class="wmx-accdel" data-selected-del="' + esc(a.bookId) + '" title="移出查看列表">×</button>' +
       '</div>'
-    ).join('') : '<div class="wmx-empty">文章查看范围还是空的，请先搜索、粘贴链接，或从下方关注列表添加。</div>';
+    ).join('') : '<div class="wmx-empty">文章查看范围还是空的，请先搜索、粘贴文章链接，或从下方书架列表添加。</div>';
   }
 
   // 抽屉是窄栏，文章行改成两行式：标题一行，公众号 / 时间 / 原文 一行
@@ -1032,7 +1034,7 @@
       if (!rows.length) {
         box.innerHTML = '<div class="wmx-empty">' + (state.articles.length
           ? '当前筛选条件下没有匹配的文章，清空关键词或放宽日期试试。'
-          : '还没有文章。请先把公众号添加到“用于查看文章的公众号”，再点击“拉取文章”。') + '</div>';
+          : '还没有文章。请先添加公众号到“文章查看范围”，再点击“拉取文章”。') + '</div>';
       } else {
         const groups = [];
         const grouped = Object.create(null);
@@ -1086,9 +1088,15 @@
   function setTheme(theme) {
     state.theme = theme === 'light' ? 'light' : 'dark';
     const panel = document.getElementById('wmx-panel');
-    if (panel) panel.classList.toggle('wmx-light', state.theme === 'light');
+    if (panel) {
+      panel.classList.toggle('wmx-light', state.theme === 'light');
+      panel.classList.toggle(WMX_NS + '-light', state.theme === 'light');
+    }
     const dock = document.getElementById('wmx-dock');
-    if (dock) dock.classList.toggle('wmx-light', state.theme === 'light');
+    if (dock) {
+      dock.classList.toggle('wmx-light', state.theme === 'light');
+      dock.classList.toggle(WMX_NS + '-light', state.theme === 'light');
+    }
     const button = document.getElementById('wmx-theme');
     if (button) button.textContent = state.theme === 'light' ? '深色' : '浅色';
     stor.set('wmx_theme', state.theme);
@@ -1104,7 +1112,7 @@
     box.hidden = false;
     box.innerHTML =
       '<span class="wmx-env-txt">当前在 ' + esc(location.hostname) +
-      '，接口数据由扩展后台转发（用浏览器里的微信读书登录态）</span>' +
+      '，接口数据由扩展后台转发</span>' +
       '<button class="wmx-mini" id="wmx-open-wr">打开微信读书</button>';
     const go = document.getElementById('wmx-open-wr');
     if (go) go.addEventListener('click', openWereadTab);
@@ -1226,7 +1234,7 @@
   async function pushSelectedCustom() {
     const ids = state.custom.map((a) => a.bookId);
     if (!ids.length) {
-      log('文章查看范围还是空的。', 'warn');
+      log('文章查看范围为空，暂时没有可加入书架的公众号。', 'warn');
       return;
     }
     if (state.login !== 'logged') {
@@ -1584,6 +1592,8 @@
     /* 右侧常驻标签 */
     const dock = document.createElement('div');
     dock.id = 'wmx-dock';
+    dock.dataset.wmxInstance = WMX_INSTANCE;
+    dock.classList.add(WMX_NS);
     dock.innerHTML =
       '<div class="wmx-dock-btn" id="wmx-dock-btn" title="微信读书 · 公众号文章导出">' +
         '<span class="wmx-dock-ico">📄</span>' +
@@ -1595,11 +1605,13 @@
     /* 抽屉主体 */
     const panel = document.createElement('div');
     panel.id = 'wmx-panel';
+    panel.dataset.wmxInstance = WMX_INSTANCE;
+    panel.classList.add(WMX_NS);
     panel.innerHTML = `
       <div class="wmx-head">
         <span class="wmx-head-title">
           <span class="wmx-title">微信读书 · 公众号文章导出</span>
-          <a class="wmx-project-link" href="https://github.com/drowning-in-codes/VibeProjects/tree/main/wechat_article_explorer" target="_blank" rel="noopener noreferrer">查看项目</a>
+          <a class="wmx-project-link" href="https://github.com/drowning-in-codes/VibeProjects/tree/main/wechat_article_explorer" target="_blank" rel="noopener noreferrer">查看项目 <span class="wmx-project-icon" aria-hidden="true">&lt;/&gt;</span></a>
         </span>
         <span class="wmx-head-actions">
           <button class="wmx-theme" id="wmx-theme" title="切换浅色/深色模式">浅色</button>
@@ -1639,7 +1651,10 @@
           <div class="wmx-selected-accounts" id="wmx-selected-accounts">
             <div class="wmx-empty">文章查看范围还是空的，请先从下方添加公众号。</div>
           </div>
-          <div class="wmx-hint">添加到查看范围的公众号会参与文章拉取。</div>
+          <div class="wmx-hint wmx-tipline">
+            <span class="wmx-info" data-wmx-tip="列表中的公众号会作为本次文章拉取范围。添加公众号后，点击下方“拉取文章”即可开始获取。" aria-label="文章查看范围说明">i</span>
+            <span>文章查看范围说明</span>
+          </div>
           <div class="wmx-opts">
             <label>每个号最多 <input id="wmx-limit" type="number" min="0" value="10" class="wmx-num"> 篇（0=不限）</label>
           </div>
@@ -1648,17 +1663,20 @@
             <button class="wmx-mini" id="wmx-diag">诊断</button>
             <span class="wmx-status" id="wmx-status"></span>
           </div>
-          <div class="wmx-hint">翻页间隔固定 1.3 秒，太快会触发风控（-2041）。号多时建议分批拉。</div>
+          <div class="wmx-hint wmx-tipline">
+            <span class="wmx-info" data-wmx-tip="每次翻页间隔 1.3 秒，用于降低触发微信读书频率限制（-2041）的概率。公众号较多时建议分批拉取。" aria-label="翻页间隔说明">i</span>
+            <span>请求节奏已自动控制</span>
+          </div>
         </div>
 
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b>添加公众号</b>
-            <span class="wmx-count" id="wmx-custom-n">本地 0 个</span>
+            <b>添加公众号到查看范围</b>
+            <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
           </div>
           <div class="wmx-sub">① 搜索公众号（需登录公众号后台）</div>
           <div class="wmx-addbox">
-            <input id="wmx-search-input" class="wmx-txt wmx-add-input" placeholder="输入公众号名称，如 量子位">
+            <input id="wmx-search-input" class="wmx-txt wmx-add-input" placeholder="输入公众号名称，如 动漫IT收看号">
             <button class="wmx-btn wmx-primary" id="wmx-search-go">搜索</button>
           </div>
           <div class="wmx-actions">
@@ -1673,29 +1691,30 @@
           </div>
           <div class="wmx-actions">
             <button class="wmx-mini" id="wmx-add-cur" hidden>收录当前页面的公众号</button>
-            <button class="wmx-mini" id="wmx-add-shelf">把本地号加入微信读书书架</button>
+            <button class="wmx-mini" id="wmx-add-shelf">将查看范围加入微信读书书架</button>
           </div>
-          <div class="wmx-hint">
-            可粘贴公众号文章链接添加，不必先在微信读书中关注；也可在当前文章页直接点击“收录这个号”。
+          <div class="wmx-hint wmx-tipline">
+            <span class="wmx-info" data-wmx-tip="可粘贴公众号文章完整链接、__biz、fakid 或 MP_WXS_数字添加，不必先关注；在公众号文章页也可以直接点击“收录这个号”。" aria-label="添加公众号说明">i</span>
+            <span>添加方式说明</span>
           </div>
         </div>
 
         <div class="wmx-sec">
           <div class="wmx-sec-h">
             <b>微信读书关注的公众号</b>
-            <button class="wmx-mini" id="wmx-refresh">刷新书架</button>
+            <button class="wmx-mini" id="wmx-refresh">刷新关注列表</button>
           </div>
-          <div class="wmx-hint">这里是你在微信读书关注的公众号。点击右侧“添加到查看列表”后，才会参与文章拉取。</div>
-          <input id="wmx-acc-kw" class="wmx-txt" placeholder="搜索公众号名称或 bookId">
+          <div class="wmx-hint wmx-tipline">
+            <span class="wmx-info" data-wmx-tip="这里是微信读书中已关注的公众号；点击某个公众号旁的“添加到查看列表”后，它才会参与文章拉取。" aria-label="微信读书关注列表说明">i</span>
+            <span>微信读书关注列表说明</span>
+          </div>
+          <input id="wmx-acc-kw" class="wmx-txt" placeholder="搜索已关注公众号名称">
           <div class="wmx-accounts" id="wmx-accounts"><div class="wmx-empty">还没有公众号。可添加文章链接，或刷新微信读书关注列表。</div></div>
-          <div class="wmx-actions">
-            <span class="wmx-count">添加后即可参与文章拉取</span>
-          </div>
         </div>
 
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b>日志</b>
+            <b>运行记录</b>
             <button class="wmx-mini" id="wmx-logclear">清空</button>
           </div>
           <div class="wmx-log" id="wmx-log"></div>
@@ -1705,7 +1724,7 @@
       <div class="wmx-view" id="wmx-view-art" hidden>
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b>筛选与导出</b>
+            <b>筛选与导出文章</b>
             <span class="wmx-count" id="wmx-filtered"></span>
           </div>
           <div class="wmx-opts">
@@ -1859,7 +1878,7 @@
         }
       }
       const picked = state.custom.slice();
-      if (!picked.length) { log('请先添加至少一个公众号到文章查看范围。', 'warn'); switchView('acc'); return; }
+      if (!picked.length) { log('请先在“文章查看范围”中添加至少一个公众号。', 'warn'); switchView('acc'); return; }
       const limit = Math.max(0, Number(document.getElementById('wmx-limit').value) || 0);
       setBusy(true, '开始拉取…');
       state.articles = [];
@@ -1921,7 +1940,7 @@
     updateCounts();
 
     if (state.shelf.length) {
-      log('已恢复上次的关注公众号列表（' + state.shelf.length + ' 个）。点「刷新书架」可重新读取。');
+      log('已恢复上次的关注公众号列表（' + state.shelf.length + ' 个）。点「刷新关注列表」可重新读取。');
     }
     if (state.custom.length) {
       log('已恢复本地添加的公众号（' + state.custom.length + ' 个）。');

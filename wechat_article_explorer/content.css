@@ -107,6 +107,11 @@
   text-decoration: none; white-space: nowrap;
 }
 #wmx-panel .wmx-project-link:hover { color: #c2d5ff; text-decoration: underline; }
+#wmx-panel .wmx-project-icon {
+  display: inline-block; margin-left: 3px; color: currentColor;
+  font-family: ui-monospace, Consolas, monospace; font-size: 10px;
+  font-weight: 700; letter-spacing: -1px;
+}
 #wmx-panel .wmx-head-actions { display: inline-flex; align-items: center; gap: 8px; }
 #wmx-panel .wmx-theme {
   padding: 3px 8px; font-size: 11px; color: #cdd5e0;
@@ -178,8 +183,21 @@
 }
 #wmx-panel .wmx-tab:hover:not(.wmx-tab-on) { background: #2e3442; color: #cdd5e0; }
 #wmx-panel .wmx-tab.wmx-tab-on {
-  background: #1e222b; color: #fff;
-  border-color: #3b4354; border-bottom: 1px solid #1e222b;
+  position: relative;
+  background: linear-gradient(180deg, #2e5fb8 0%, #244b91 100%);
+  color: #fff;
+  border-color: #5d8fe8;
+  border-bottom: 1px solid #244b91;
+  box-shadow: 0 -2px 12px rgba(59, 111, 224, .24), 0 3px 10px rgba(0, 0, 0, .18);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+}
+#wmx-panel .wmx-tab.wmx-tab-on::after {
+  content: "";
+  position: absolute;
+  left: 12px; right: 12px; bottom: -2px;
+  height: 3px; border-radius: 3px;
+  background: #8fbbff;
+  box-shadow: 0 0 9px rgba(143, 187, 255, .85);
 }
 #wmx-panel .wmx-tab i {
   font-style: normal; font-size: 11px; font-weight: 600;
@@ -254,8 +272,21 @@
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin-bottom: 8px; color: #fff; font-size: 13px;
 }
+#wmx-panel .wmx-sec-h b {
+  display: inline-flex; align-items: center; gap: 6px;
+  letter-spacing: .1px;
+}
+#wmx-panel .wmx-sec-h b::before {
+  content: "";
+  width: 3px; height: 14px; border-radius: 3px;
+  background: #4c8dff; box-shadow: 0 0 7px rgba(76, 141, 255, .32);
+}
 #wmx-panel .wmx-status { color: #7fd1a8; font-size: 11.5px; font-weight: 400; text-align: right; }
-#wmx-panel .wmx-count { color: #7d8798; font-size: 11.5px; font-weight: 400; }
+#wmx-panel .wmx-count {
+  color: #9da9bc; font-size: 11px; font-weight: 500;
+  padding: 2px 7px; border: 1px solid #374254; border-radius: 999px;
+  background: #242b38; white-space: nowrap;
+}
 
 /* ---------- 公众号列表 ---------- */
 #wmx-panel .wmx-accounts {
@@ -271,6 +302,7 @@
 }
 #wmx-panel .wmx-acc:last-child { border-bottom: 0; }
 #wmx-panel .wmx-acc:hover { background: #212734; }
+#wmx-panel .wmx-acc-icon { flex: 0 0 auto; font-size: 15px; line-height: 1; }
 #wmx-panel .wmx-accname { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #wmx-panel .wmx-accid {
   flex: 0 1 auto; max-width: 130px; color: #6b7688; font-size: 11px;
@@ -364,6 +396,33 @@
 #wmx-panel .wmx-num:focus, #wmx-panel .wmx-txt:focus, #wmx-panel .wmx-date:focus { border-color: #4c8dff; }
 
 #wmx-panel .wmx-hint { margin-top: 7px; color: #6b7688; font-size: 11.5px; line-height: 1.55; }
+#wmx-panel .wmx-tipline { display: flex; align-items: center; gap: 6px; }
+#wmx-panel .wmx-info {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border: 1px solid currentColor; border-radius: 50%;
+  font-size: 10px; font-family: Georgia, serif; font-weight: 700;
+  cursor: help; flex: 0 0 auto;
+}
+#wmx-panel .wmx-info::after {
+  content: attr(data-wmx-tip);
+  position: absolute; z-index: 5;
+  left: 21px; top: 50%; transform: translateY(-50%);
+  width: 220px; padding: 7px 9px;
+  border: 1px solid #465066; border-radius: 6px;
+  background: #252b38; color: #dfe5ee;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .28);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 11px; font-weight: 400; line-height: 1.5;
+  text-align: left; white-space: normal;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .14s ease, visibility .14s ease;
+}
+#wmx-panel .wmx-info:hover::after,
+#wmx-panel .wmx-info:focus-visible::after {
+  opacity: 1; visibility: visible;
+}
 
 /* ---------- 日志 ---------- */
 #wmx-panel .wmx-log {
@@ -473,7 +532,18 @@
 #wmx-panel.wmx-light .wmx-sr-name { color: #1f2b3d; }
 #wmx-panel.wmx-light .wmx-tab { color: #708096; }
 #wmx-panel.wmx-light .wmx-tab:hover:not(.wmx-tab-on) { background: #eef3fa; color: #33445d; }
-#wmx-panel.wmx-light .wmx-tab.wmx-tab-on { background: #f6f8fb; border-bottom-color: #f6f8fb; }
+#wmx-panel.wmx-light .wmx-tab.wmx-tab-on {
+  background: linear-gradient(180deg, #e5efff 0%, #cfe0fb 100%);
+  color: #174784;
+  border-color: #82a9e6;
+  border-bottom-color: #cfe0fb;
+  box-shadow: 0 -2px 12px rgba(53, 104, 189, .16), 0 3px 10px rgba(53, 104, 189, .12);
+  text-shadow: none;
+}
+#wmx-panel.wmx-light .wmx-tab.wmx-tab-on::after {
+  background: #3568bd;
+  box-shadow: 0 0 8px rgba(53, 104, 189, .45);
+}
 #wmx-panel.wmx-light .wmx-view { background: #f6f8fb; }
 #wmx-panel.wmx-light .wmx-sec { border-bottom-color: #dce3ed; }
 #wmx-panel.wmx-light .wmx-range-fetch {
@@ -506,6 +576,12 @@
 #wmx-panel.wmx-light .wmx-sub,
 #wmx-panel.wmx-light .wmx-art-m,
 #wmx-panel.wmx-light .wmx-sr-id { color: #718097; }
+#wmx-panel.wmx-light .wmx-count {
+  color: #58708f; border-color: #d3deec; background: #f1f5fa;
+}
+#wmx-panel.wmx-light .wmx-sec-h b::before {
+  background: #3568bd; box-shadow: 0 0 7px rgba(53, 104, 189, .24);
+}
 #wmx-panel.wmx-light .wmx-txt,
 #wmx-panel.wmx-light .wmx-num,
 #wmx-panel.wmx-light .wmx-date { background: #fff; color: #26364d; border-color: #cbd5e3; }
@@ -518,6 +594,21 @@
 #wmx-panel.wmx-light .wmx-art-group { border-bottom-color: #d7deea; }
 #wmx-panel.wmx-light .wmx-more-art { background: #edf3fb; color: #3568bd; border-color: #bfd0e8; }
 #wmx-panel.wmx-light .wmx-theme { background: #eaf0f8; color: #3d587b; }
+#wmx-panel.wmx-light .wmx-info::after {
+  background: #fff; border-color: #c7d3e4; color: #34445a;
+  box-shadow: 0 5px 16px rgba(31, 47, 70, .18);
+}
+#wmx-panel.wmx-light .wmx-env {
+  background: #eef3fb; border-color: #c7d6ed; color: #526b8d;
+}
+#wmx-panel.wmx-light .wmx-env .wmx-env-txt { color: #526b8d; }
+#wmx-panel.wmx-light .wmx-ctx {
+  background: #fff; border-color: #d7deea;
+}
+#wmx-panel.wmx-light .wmx-ctx-h,
+#wmx-panel.wmx-light .wmx-ctx-m { color: #718097; }
+#wmx-panel.wmx-light .wmx-ctx-h b,
+#wmx-panel.wmx-light .wmx-ctx-t { color: #26364d; }
 #wmx-panel.wmx-light .wmx-project-link { color: #3568bd; }
 #wmx-panel.wmx-light .wmx-project-link:hover { color: #244e99; }
 
