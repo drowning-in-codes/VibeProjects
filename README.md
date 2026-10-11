@@ -171,6 +171,7 @@ wechat_article_explorer/
 2. 选择“加载已解压的扩展程序”，加载 `wechat_article_explorer` 目录；
 3. 打开 `weread.qq.com` 或 `mp.weixin.qq.com`；
 4. 打开页面右侧的“公众号导出”抽屉，登录微信读书后添加公众号并拉取文章。
+<img width="557" height="867" alt="image" src="https://github.com/user-attachments/assets/f7971dfa-a258-424e-bbbd-521702f5dc8e" />
 
 公众号名称搜索需要公众号后台登录态；文章读取需要微信读书登录态。详细安装步骤、权限说明、常见问题和接口限制见 [`wechat_article_explorer/README.md`](./wechat_article_explorer/README.md)。
 
