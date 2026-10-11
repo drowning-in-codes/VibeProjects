@@ -1876,7 +1876,7 @@
       <div class="wmx-view" id="wmx-view-art" hidden>
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b><span aria-hidden="true">📤</span> 筛选与导出文章</b>
+            <b><span aria-hidden="true">🔍</span> 筛选与导出文章</b>
             <span class="wmx-count" id="wmx-filtered"></span>
           </div>
           <div class="wmx-opts">
