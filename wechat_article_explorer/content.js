@@ -885,9 +885,11 @@
     firstEver: false,   // 首次安装使用，用于自动展开一次
     page: null,         // 非微信读书页面时，当前页面的文章信息
     view: 'acc',        // acc | art
+    shelfHidden: false, // 微信读书关注列表是否隐藏
     mpToken: '',
     search: { kw: '', list: [], more: false, loading: false },
     articleVisible: Object.create(null),
+    articleHidden: Object.create(null),
     theme: 'dark'
   };
 
@@ -979,6 +981,24 @@
   }
 
   /* ---------------- 渲染 ---------------- */
+  function toggleShelfList() {
+    state.shelfHidden = !state.shelfHidden;
+    const list = document.getElementById('wmx-accounts');
+    const kw = document.getElementById('wmx-acc-kw');
+    // 折叠时清掉不可见的过滤词，避免展开后列表被隐形过滤
+    if (state.shelfHidden && kw && kw.value) kw.value = '';
+    if (list) list.hidden = state.shelfHidden;
+    if (kw) kw.hidden = state.shelfHidden;
+    if (state.shelfHidden) renderAccounts();
+    const eye = document.getElementById('wmx-shelf-eye');
+    if (eye) {
+      eye.classList.toggle('wmx-eye-off', state.shelfHidden);
+      eye.title = state.shelfHidden ? '显示关注列表' : '隐藏关注列表';
+      eye.setAttribute('aria-label', eye.title);
+      eye.setAttribute('aria-pressed', state.shelfHidden ? 'true' : 'false');
+    }
+  }
+
   function renderAccounts() {
     renderSelectedAccounts();
     const box = document.getElementById('wmx-accounts');
@@ -1039,22 +1059,19 @@
         const groups = [];
         const grouped = Object.create(null);
         rows.slice(0, 500).forEach((r) => {
-          const key = r.account || '未命名公众号';
+          const key = groupKeyOf(r);
           if (!grouped[key]) {
             grouped[key] = [];
-            groups.push({ name: key, rows: grouped[key] });
+            groups.push({ key: key, name: r.account || '未命名公众号', rows: grouped[key] });
           }
           grouped[key].push(r);
         });
         const body = groups.map((group) => {
-          const groupKey = group.name;
+          const groupKey = group.key;
+          const hidden = !!state.articleHidden[groupKey];
           const visible = Math.min(group.rows.length, state.articleVisible[groupKey] || 3);
           const hasMore = visible < group.rows.length;
-          return (
-          '<section class="wmx-art-group">' +
-            '<h3 class="wmx-art-group-title">' + esc(group.name) +
-              '<span class="wmx-art-group-count">' + group.rows.length + ' 篇</span>' +
-            '</h3>' +
+          const listHtml = hidden ? '' :
             group.rows.slice(0, visible).map((r) =>
               '<div class="wmx-art">' +
                 '<a class="wmx-art-t" href="' + esc(r.url || '#') + '" target="_blank" rel="noreferrer" title="' +
@@ -1068,7 +1085,18 @@
               '</div>'
             ).join('') +
             (hasMore ? '<button class="wmx-more-art" data-art-more="' + esc(groupKey) + '">显示更多（剩余 ' +
-              (group.rows.length - visible) + ' 篇）</button>' : '') +
+              (group.rows.length - visible) + ' 篇）</button>' : '');
+          return (
+          '<section class="wmx-art-group">' +
+            '<h3 class="wmx-art-group-title">' + esc(group.name) +
+              '<span class="wmx-art-group-count">' + group.rows.length + ' 篇' + (hidden ? ' · 已隐藏' : '') + '</span>' +
+              '<button class="wmx-mini wmx-eye wmx-art-group-eye' + (hidden ? ' wmx-eye-off' : '') + '"' +
+                ' data-art-hide="' + esc(groupKey) + '"' +
+                ' title="' + (hidden ? '显示该公众号文章' : '隐藏该公众号文章') + '"' +
+                ' aria-label="' + (hidden ? '显示该公众号文章' : '隐藏该公众号文章') + '"' +
+                ' aria-pressed="' + (hidden ? 'true' : 'false') + '">👁️</button>' +
+            '</h3>' +
+            listHtml +
           '</section>'
           );
         }).join('');
@@ -1353,16 +1381,36 @@
     if (more) more.disabled = busy;
   }
 
+  function renderSearchNote() {
+    // 在公众号后台页面时，先从页面里捞 token，避免误判成“未登录”
+    if (!state.mpToken && IS_MP) {
+      const t = readMpTokenFromPage();
+      if (t) { state.mpToken = t; stor.set('wmx_mp_token', t); }
+    }
+    const note = document.getElementById('wmx-search-note');
+    if (!note) return;
+    const connected = !!state.mpToken;
+    note.textContent = connected ? '已连接公众号后台' : '⚠️ 需登录公众号后台';
+    note.className = 'wmx-count' + (connected ? ' wmx-count-ok' : ' wmx-count-err');
+    if (connected) {
+      note.removeAttribute('role');
+      note.removeAttribute('tabindex');
+      note.title = '已连接公众号后台';
+    } else {
+      note.setAttribute('role', 'button');
+      note.setAttribute('tabindex', '0');
+      note.title = '点击登录公众号后台';
+    }
+  }
+
   function renderSearchResults() {
     const box = document.getElementById('wmx-searchres');
     if (!box) return;
-    const note = document.getElementById('wmx-search-note');
-    if (note) {
-      note.textContent = state.mpToken ? '已连接公众号后台' : '需登录公众号后台';
-      note.className = 'wmx-count' + (state.mpToken ? ' wmx-count-ok' : '');
-    }
+    renderSearchNote();
     if (!state.search.list.length) { box.hidden = true; box.innerHTML = ''; return; }
-    let html = state.search.list.map((item, index) => {
+    let html = '<div class="wmx-searchres-head"><b>搜索结果</b>' +
+      '<button class="wmx-searchres-close" id="wmx-searchres-close" type="button" aria-label="关闭搜索结果">×</button></div>' +
+      state.search.list.map((item, index) => {
       const type = item.serviceType === 1 ? '服务号' : item.serviceType === 2 ? '企业号' : '订阅号';
       const exists = state.accounts.some((a) => a.bookId === item.bookId);
       return '<div class="wmx-sr">' +
@@ -1475,7 +1523,7 @@
     const fl = document.getElementById('wmx-filtered');
     if (fl) {
       fl.textContent = state.articles.length
-        ? '匹配 ' + filtered().length + ' / ' + state.articles.length + ' 条' : '';
+        ? '匹配 ' + visibleRows().length + ' / ' + state.articles.length + ' 条' : '';
     }
     renderStatus();
   }
@@ -1517,8 +1565,15 @@
     });
   }
 
+  function groupKeyOf(r) { return r.bookId || r.account || '未命名公众号'; }
+
+  // 关键词/日期筛选之后，再扣除被“隐藏”的公众号分组；用于导出与计数。
+  function visibleRows() {
+    return filtered().filter((r) => !state.articleHidden[groupKeyOf(r)]);
+  }
+
   function exportCsv() {
-    const rows = filtered();
+    const rows = visibleRows();
     if (!rows.length) { log('没有可导出的数据', 'warn'); return; }
     const q = (s) => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
     const lines = ['﻿序号,公众号,标题,发布时间,链接'];
@@ -1530,7 +1585,7 @@
   }
 
   function exportMd() {
-    const rows = filtered();
+    const rows = visibleRows();
     if (!rows.length) { log('没有可导出的数据', 'warn'); return; }
     const md = ['# 公众号文章列表', '', '导出时间：' + new Date().toLocaleString(), '共 ' + rows.length + ' 条', '',
       '| # | 公众号 | 标题 | 发布时间 | 链接 |', '| --- | --- | --- | --- | --- |']
@@ -1544,7 +1599,7 @@
   }
 
   function copyLinks() {
-    const rows = filtered();
+    const rows = visibleRows();
     if (!rows.length) { log('没有可复制的数据', 'warn'); return; }
     const text = rows.map((r) => r.url).filter(Boolean).join('\n');
     navigator.clipboard.writeText(text)
@@ -1553,7 +1608,7 @@
   }
 
   function copyTitleLinks() {
-    const rows = filtered();
+    const rows = visibleRows();
     if (!rows.length) { log('没有可复制的数据', 'warn'); return; }
     const text = rows.map((r) => (r.title || '') + '\n' + (r.url || '')).join('\n\n');
     navigator.clipboard.writeText(text)
@@ -1643,6 +1698,32 @@
       <div class="wmx-view" id="wmx-view-acc">
         <div class="wmx-sec">
           <div class="wmx-sec-h">
+            <b>文章查看与获取</b>
+            <span class="wmx-count" id="wmx-picked">共 0 个</span>
+          </div>
+          <div class="wmx-selected-accounts" id="wmx-selected-accounts">
+            <div class="wmx-empty">文章查看范围还是空的，请先从下方添加公众号。</div>
+          </div>
+          <div class="wmx-hint wmx-tipline">
+            <span class="wmx-info" data-wmx-tip="列表中的公众号会作为本次文章拉取范围。添加公众号后，点击下方“拉取文章”即可开始获取。" aria-label="文章查看范围说明">i</span>
+            <span>文章查看范围说明</span>
+          </div>
+          <div class="wmx-opts">
+            <label>每个号最多 <input id="wmx-limit" type="number" min="0" value="10" class="wmx-num"> 篇（0=不限）</label>
+          </div>
+          <div class="wmx-actions">
+            <button class="wmx-btn wmx-primary" id="wmx-run">拉取文章</button>
+            <button class="wmx-mini" id="wmx-diag">诊断</button>
+            <span class="wmx-status" id="wmx-status"></span>
+          </div>
+          <div class="wmx-hint wmx-tipline">
+            <span class="wmx-info" data-wmx-tip="每次翻页间隔 1.3 秒，用于降低触发微信读书频率限制（-2041）的概率。公众号较多时建议分批拉取。" aria-label="翻页间隔说明">i</span>
+            <span>请求节奏已自动控制</span>
+          </div>
+        </div>
+
+        <div class="wmx-sec">
+          <div class="wmx-sec-h">
             <b>添加公众号到查看范围</b>
             <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
           </div>
@@ -1653,7 +1734,7 @@
           </div>
           <div class="wmx-actions">
             <button class="wmx-mini" id="wmx-mp-open">打开公众号后台</button>
-            <span class="wmx-count" id="wmx-search-note">需登录公众号后台</span>
+            <span class="wmx-count" id="wmx-search-note" role="button" tabindex="0" title="点击登录公众号后台">需登录公众号后台</span>
           </div>
           <div class="wmx-searchres" id="wmx-searchres" hidden></div>
           <div class="wmx-sub">② 也可以用文章链接或 __biz 添加</div>
@@ -1671,24 +1752,13 @@
           </div>
         </div>
 
-        <div class="wmx-sec wmx-search-scope">
-          <div class="wmx-sec-h">
-            <b>文章查看范围</b>
-            <span class="wmx-count" id="wmx-picked">共 0 个</span>
-          </div>
-          <div class="wmx-selected-accounts" id="wmx-selected-accounts">
-            <div class="wmx-empty">还没有公众号。请先搜索、粘贴文章链接，或从微信读书关注列表添加。</div>
-          </div>
-          <div class="wmx-hint wmx-tipline">
-            <span class="wmx-info" data-wmx-tip="列表中的公众号会作为本次文章拉取范围。添加公众号后，点击下方“拉取文章”即可开始获取。" aria-label="文章查看范围说明">i</span>
-            <span>文章查看范围说明</span>
-          </div>
-        </div>
-
         <div class="wmx-sec">
           <div class="wmx-sec-h">
             <b><span aria-hidden="true">📚</span> 微信读书关注的公众号</b>
-            <button class="wmx-mini" id="wmx-refresh">刷新关注列表</button>
+            <span class="wmx-sec-actions">
+              <button class="wmx-mini wmx-eye" id="wmx-shelf-eye" title="隐藏关注列表" aria-label="隐藏关注列表" aria-pressed="false">👁️</button>
+              <button class="wmx-mini" id="wmx-refresh">刷新关注列表</button>
+            </span>
           </div>
           <div class="wmx-hint wmx-tipline">
             <span class="wmx-info" data-wmx-tip="这里是微信读书中已关注的公众号；点击某个公众号旁的“添加到查看列表”后，它才会参与文章拉取。" aria-label="微信读书关注列表说明">i</span>
@@ -1696,24 +1766,6 @@
           </div>
           <input id="wmx-acc-kw" class="wmx-txt" placeholder="搜索已关注公众号名称">
           <div class="wmx-accounts" id="wmx-accounts"><div class="wmx-empty">还没有公众号。可添加文章链接，或刷新微信读书关注列表。</div></div>
-        </div>
-
-        <div class="wmx-sec">
-          <div class="wmx-sec-h">
-            <b>获取文章</b>
-            <span class="wmx-status" id="wmx-status"></span>
-          </div>
-          <div class="wmx-opts">
-            <label>每个号最多 <input id="wmx-limit" type="number" min="0" value="10" class="wmx-num"> 篇（0=不限）</label>
-          </div>
-          <div class="wmx-actions">
-            <button class="wmx-btn wmx-primary" id="wmx-run">拉取文章</button>
-            <button class="wmx-mini" id="wmx-diag">诊断</button>
-          </div>
-          <div class="wmx-hint wmx-tipline">
-            <span class="wmx-info" data-wmx-tip="每次翻页间隔 1.3 秒，用于降低触发微信读书频率限制（-2041）的概率。公众号较多时建议分批拉取。" aria-label="翻页间隔说明">i</span>
-            <span>请求节奏已自动控制</span>
-          </div>
         </div>
 
         <div class="wmx-sec">
@@ -1745,7 +1797,7 @@
         </div>
 
         <div class="wmx-sec">
-          <div class="wmx-result" id="wmx-result"><div class="wmx-empty">还没有文章。请先添加公众号，再点击“拉取文章”。</div></div>
+          <div class="wmx-result" id="wmx-result"><div class="wmx-empty">还没有文章。请先添加公众号到文章查看范围，再点击“拉取文章”。</div></div>
         </div>
       </div>`;
     document.body.appendChild(panel);
@@ -1816,9 +1868,23 @@
     if (searchGo) searchGo.addEventListener('click', () => doSearchAccounts(false));
     const mpOpen = document.getElementById('wmx-mp-open');
     if (mpOpen) mpOpen.addEventListener('click', openMpBackend);
+    const searchNote = document.getElementById('wmx-search-note');
+    if (searchNote) {
+      searchNote.addEventListener('click', () => { if (!state.mpToken) openMpBackend(); });
+      searchNote.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); if (!state.mpToken) openMpBackend(); }
+      });
+    }
+    const shelfEye = document.getElementById('wmx-shelf-eye');
+    if (shelfEye) shelfEye.addEventListener('click', toggleShelfList);
     const searchResults = document.getElementById('wmx-searchres');
     if (searchResults) searchResults.addEventListener('click', (ev) => {
       const target = ev.target;
+      if (target && target.id === 'wmx-searchres-close') {
+        ev.preventDefault();
+        searchResults.hidden = true;
+        return;
+      }
       const index = target && target.getAttribute && target.getAttribute('data-s');
       if (index !== null && index !== undefined) {
         ev.preventDefault();
@@ -1831,6 +1897,12 @@
     const articleResults = document.getElementById('wmx-result');
     if (articleResults) articleResults.addEventListener('click', (ev) => {
       const target = ev.target;
+      const hideName = target && target.getAttribute && target.getAttribute('data-art-hide');
+      if (hideName !== null && hideName !== undefined) {
+        state.articleHidden[hideName] = !state.articleHidden[hideName];
+        renderResult();
+        return;
+      }
       const name = target && target.getAttribute && target.getAttribute('data-art-more');
       if (name !== null && name !== undefined) {
         state.articleVisible[name] = (state.articleVisible[name] || 3) + 5;
@@ -1882,6 +1954,8 @@
       setBusy(true, '开始拉取…');
       state.articles = [];
       state.lastRaw = null;
+      state.articleHidden = Object.create(null);
+      state.articleVisible = Object.create(null);
       renderResult();
       try {
         for (let i = 0; i < picked.length; i++) {
@@ -1932,6 +2006,7 @@
     /* ---- 初次渲染 ---- */
     renderEnv();
     renderCtx();
+    renderSearchNote();
     rebuildAccounts();
     renderResult();
     setTheme(state.theme);
