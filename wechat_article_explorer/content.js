@@ -1679,6 +1679,9 @@
           <div class="wmx-selected-accounts" id="wmx-selected-accounts">
             <div class="wmx-empty">还没有公众号。请先搜索、粘贴文章链接，或从微信读书关注列表添加。</div>
           </div>
+          <div class="wmx-actions">
+            <span class="wmx-count">添加后即可拉取文章</span>
+          </div>
         </div>
 
         <div class="wmx-sec">
@@ -1692,9 +1695,6 @@
           </div>
           <input id="wmx-acc-kw" class="wmx-txt" placeholder="搜索已关注公众号名称">
           <div class="wmx-accounts" id="wmx-accounts"><div class="wmx-empty">还没有公众号。可添加文章链接，或刷新微信读书关注列表。</div></div>
-          <div class="wmx-actions">
-            <span class="wmx-count">添加后即可拉取文章</span>
-          </div>
         </div>
 
         <div class="wmx-sec">
