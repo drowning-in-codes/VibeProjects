@@ -636,6 +636,7 @@
   background: #3568bd;
   box-shadow: 0 0 8px rgba(53, 104, 189, .45);
 }
+#wmx-panel.wmx-light .wmx-tab i { background: #e6ecf5; color: #526a8c; }
 #wmx-panel.wmx-light .wmx-view { background: var(--wmx-bg); }
 #wmx-panel.wmx-light .wmx-sec { border-bottom-color: var(--wmx-border-2); }
 #wmx-panel.wmx-light .wmx-accounts,
