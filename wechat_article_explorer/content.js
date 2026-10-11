@@ -1829,7 +1829,7 @@
               <span class="wmx-count" id="wmx-search-note" role="button" tabindex="0" title="点击登录公众号后台">需登录公众号后台</span>
             </div>
             <div class="wmx-searchres" id="wmx-searchres" hidden></div>
-            <div class="wmx-sub">② 也可以用文章链接或 __biz 添加 <a class="wmx-help" href="https://github.com/drowning-in-codes/VibeProjects/blob/main/wechat_article_explorer/README.md#%E5%85%AC%E4%BC%97%E5%8F%B7%E7%AE%A1%E7%90%86" target="_blank" rel="noopener" data-wmx-tip="__biz 是微信公众号的唯一标识，藏在文章链接的 __biz= 参数里，用于定位并拉取该公众号。点击此图标查看更详细的说明。" aria-label="什么是 __biz，点击查看说明">?</a></div>
+            <div class="wmx-sub">② 也可以用文章链接、__biz 或 MP_WXS_ 添加 <a class="wmx-help" href="https://github.com/drowning-in-codes/VibeProjects/blob/main/wechat_article_explorer/README.md#%E5%85%AC%E4%BC%97%E5%8F%B7%E7%AE%A1%E7%90%86" target="_blank" rel="noopener" data-wmx-tip="__biz 是微信公众号的唯一标识，藏在文章链接的 __biz= 参数里；MP_WXS_ 是微信读书里公众号的 bookId，形如 MP_WXS_数字。点击此图标查看更详细的说明。" aria-label="什么是 __biz、MP_WXS_，点击查看说明">?</a></div>
             <div class="wmx-addbox">
               <input id="wmx-add-input" class="wmx-txt wmx-add-input" placeholder="文章链接 / __biz / MP_WXS_数字">
               <button class="wmx-btn wmx-primary" id="wmx-add-go">添加</button>
