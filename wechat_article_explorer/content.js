@@ -1812,11 +1812,11 @@
 
         <div class="wmx-sec">
           <div class="wmx-sec-h">
-            <b>添加公众号到查看范围</b>
-            <span class="wmx-sec-actions">
-              <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
+            <span class="wmx-sec-title">
               <button class="wmx-mini wmx-eye" id="wmx-add-eye" title="隐藏添加区域" aria-label="隐藏添加区域" aria-pressed="false">👁️</button>
+              <b>添加公众号到查看范围</b>
             </span>
+            <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
           </div>
           <div id="wmx-add-body">
             <div class="wmx-sub">① 搜索公众号（需登录公众号后台）</div>
