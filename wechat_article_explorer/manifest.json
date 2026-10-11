@@ -1,16 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "微信读书公众号文章浏览器",
-  "version": "0.1.0",
-  "description": "在微信读书和公众号文章页浏览已关注公众号的文章。",
-  "permissions": ["scripting", "tabs", "storage"],
+  "name": "微信读书 · 公众号文章导出器",
+  "version": "1.5.0",
+  "description": "在微信读书网页版或微信公众号页面的右侧滑出抽屉中，登录微信读书、按文章链接添加公众号并批量导出文章标题与原文链接。走微信读书接口，不依赖已失效的公众号后台接口。",
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://weread.qq.com/*",
     "https://mp.weixin.qq.com/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -18,17 +19,14 @@
         "https://weread.qq.com/*",
         "https://mp.weixin.qq.com/*"
       ],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["content.css"],
-      "matches": [
-        "https://weread.qq.com/*",
-        "https://mp.weixin.qq.com/*"
-      ]
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ]
 }
