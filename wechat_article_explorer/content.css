@@ -463,7 +463,15 @@
   font-size: 10px; font-family: Georgia, serif; font-weight: 700;
   cursor: help; flex: 0 0 auto;
 }
-#wmx-panel .wmx-info::after {
+#wmx-panel .wmx-help {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border: 1px solid currentColor; border-radius: 50%;
+  font-size: 10px; font-family: Georgia, serif; font-weight: 700;
+  color: inherit; text-decoration: none; cursor: pointer; flex: 0 0 auto;
+}
+#wmx-panel .wmx-info::after,
+#wmx-panel .wmx-help::after {
   content: attr(data-wmx-tip);
   position: absolute; z-index: 5;
   left: 21px; top: 50%; transform: translateY(-50%);
@@ -479,7 +487,9 @@
   transition: opacity .14s ease, visibility .14s ease;
 }
 #wmx-panel .wmx-info:hover::after,
-#wmx-panel .wmx-info:focus-visible::after {
+#wmx-panel .wmx-info:focus-visible::after,
+#wmx-panel .wmx-help:hover::after,
+#wmx-panel .wmx-help:focus-visible::after {
   opacity: 1; visibility: visible;
 }
 
@@ -571,6 +581,27 @@
 }
 #wmx-panel .wmx-qr-dim { color: #6f7a8c; }
 
+/* ---------- 轻提示 toast ---------- */
+#wmx-toast {
+  position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+  z-index: 2147483000; display: flex; flex-direction: column; align-items: center;
+  gap: 8px; pointer-events: none; width: max-content; max-width: 90vw;
+}
+#wmx-toast .wmx-toast-item {
+  max-width: min(80vw, 440px); padding: 10px 16px; border-radius: 8px;
+  font-size: 13px; line-height: 1.5; text-align: left;
+  color: #eef2f8; background: #232936; border: 1px solid #3a4356;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .4);
+  opacity: 0; transform: translateY(-8px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+#wmx-toast .wmx-toast-item.wmx-toast-in { opacity: 1; transform: translateY(0); }
+#wmx-toast .wmx-toast-item.wmx-toast-out { opacity: 0; transform: translateY(-8px); }
+#wmx-toast .wmx-toast-ok { border-color: rgba(74, 190, 140, .55); }
+#wmx-toast .wmx-toast-ok::before { content: '✓  '; color: #4abe8c; font-weight: 700; }
+#wmx-toast .wmx-toast-err { border-color: rgba(232, 110, 96, .55); }
+#wmx-toast .wmx-toast-err::before { content: '✕  '; color: #e86e60; font-weight: 700; }
+
 /* ---------- 窄屏 ---------- */
 @media (max-width: 560px) {
   #wmx-panel { width: 100vw; }
@@ -653,7 +684,8 @@
 #wmx-panel.wmx-light .wmx-art-group { border-bottom-color: var(--wmx-border); }
 #wmx-panel.wmx-light .wmx-more-art { background: #edf3fb; color: #3568bd; border-color: #bfd0e8; }
 #wmx-panel.wmx-light .wmx-theme { background: #eaf0f8; color: #3d587b; }
-#wmx-panel.wmx-light .wmx-info::after {
+#wmx-panel.wmx-light .wmx-info::after,
+#wmx-panel.wmx-light .wmx-help::after {
   background: var(--wmx-surface); border-color: #c7d3e4; color: #34445a;
   box-shadow: 0 5px 16px rgba(31, 47, 70, .18);
 }
@@ -670,6 +702,16 @@
 #wmx-panel.wmx-light .wmx-ctx-t { color: #26364d; }
 #wmx-panel.wmx-light .wmx-project-link { color: var(--wmx-link); }
 #wmx-panel.wmx-light .wmx-project-link:hover { color: var(--wmx-link-strong); }
+
+/* ---------- 轻提示 toast 浅色 ---------- */
+#wmx-toast.wmx-light .wmx-toast-item {
+  color: #26364d; background: #fff; border-color: #dbe3ee;
+  box-shadow: 0 8px 24px rgba(31, 47, 70, .18);
+}
+#wmx-toast.wmx-light .wmx-toast-ok { border-color: rgba(42, 160, 110, .5); }
+#wmx-toast.wmx-light .wmx-toast-ok::before { color: #2aa06e; }
+#wmx-toast.wmx-light .wmx-toast-err { border-color: rgba(222, 88, 76, .5); }
+#wmx-toast.wmx-light .wmx-toast-err::before { color: #de584c; }
 
 /* ---------- 面板外部组件主题 ---------- */
 #wmx-dock.wmx-light .wmx-dock-btn {
