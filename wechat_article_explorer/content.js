@@ -901,6 +901,7 @@
     view: 'acc',        // acc | art
     shelfHidden: false, // 微信读书关注列表是否隐藏
     logHidden: false,   // 运行记录是否隐藏
+    addHidden: false,   // 添加公众号区域是否隐藏
     mpToken: '',
     search: { kw: '', list: [], more: false, loading: false },
     articleVisible: Object.create(null),
@@ -1045,6 +1046,19 @@
       eye.title = state.logHidden ? '显示运行记录' : '隐藏运行记录';
       eye.setAttribute('aria-label', eye.title);
       eye.setAttribute('aria-pressed', state.logHidden ? 'true' : 'false');
+    }
+  }
+
+  function toggleAddBox() {
+    state.addHidden = !state.addHidden;
+    const box = document.getElementById('wmx-add-body');
+    if (box) box.hidden = state.addHidden;
+    const eye = document.getElementById('wmx-add-eye');
+    if (eye) {
+      eye.classList.toggle('wmx-eye-off', state.addHidden);
+      eye.title = state.addHidden ? '显示添加区域' : '隐藏添加区域';
+      eye.setAttribute('aria-label', eye.title);
+      eye.setAttribute('aria-pressed', state.addHidden ? 'true' : 'false');
     }
   }
 
@@ -1799,30 +1813,35 @@
         <div class="wmx-sec">
           <div class="wmx-sec-h">
             <b>添加公众号到查看范围</b>
-            <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
+            <span class="wmx-sec-actions">
+              <span class="wmx-count" id="wmx-custom-n">查看范围 0 个</span>
+              <button class="wmx-mini wmx-eye" id="wmx-add-eye" title="隐藏添加区域" aria-label="隐藏添加区域" aria-pressed="false">👁️</button>
+            </span>
           </div>
-          <div class="wmx-sub">① 搜索公众号（需登录公众号后台）</div>
-          <div class="wmx-addbox">
-            <input id="wmx-search-input" class="wmx-txt wmx-add-input" placeholder="输入公众号名称，如 动漫IT收看号">
-            <button class="wmx-btn wmx-primary" id="wmx-search-go">搜索</button>
-          </div>
-          <div class="wmx-actions">
-            <button class="wmx-mini" id="wmx-mp-open">打开公众号后台</button>
-            <span class="wmx-count" id="wmx-search-note" role="button" tabindex="0" title="点击登录公众号后台">需登录公众号后台</span>
-          </div>
-          <div class="wmx-searchres" id="wmx-searchres" hidden></div>
-          <div class="wmx-sub">② 也可以用文章链接或 __biz 添加 <a class="wmx-help" href="https://github.com/drowning-in-codes/VibeProjects/blob/main/wechat_article_explorer/README.md#%E5%85%AC%E4%BC%97%E5%8F%B7%E7%AE%A1%E7%90%86" target="_blank" rel="noopener" data-wmx-tip="__biz 是微信公众号的唯一标识，藏在文章链接的 __biz= 参数里，用于定位并拉取该公众号。点击此图标查看更详细的说明。" aria-label="什么是 __biz，点击查看说明">?</a></div>
-          <div class="wmx-addbox">
-            <input id="wmx-add-input" class="wmx-txt wmx-add-input" placeholder="文章链接 / __biz / MP_WXS_数字">
-            <button class="wmx-btn wmx-primary" id="wmx-add-go">添加</button>
-          </div>
-          <div class="wmx-hint wmx-tipline">
-            <span class="wmx-info" data-wmx-tip="可粘贴公众号文章完整链接、__biz、fakid 或 MP_WXS_数字添加，不必先关注；在公众号文章页也可以直接点击“收录这个号”。" aria-label="添加公众号说明">i</span>
-            <span>添加方式说明</span>
-          </div>
-          <div class="wmx-actions">
-            <button class="wmx-mini" id="wmx-add-cur" hidden>将当前页面公众号加到查看范围</button>
-            <button class="wmx-mini" id="wmx-add-shelf">将查看范围公众号添加到微信读书关注</button>
+          <div id="wmx-add-body">
+            <div class="wmx-sub">① 搜索公众号（需登录公众号后台）</div>
+            <div class="wmx-addbox">
+              <input id="wmx-search-input" class="wmx-txt wmx-add-input" placeholder="输入公众号名称，如 动漫IT收看号">
+              <button class="wmx-btn wmx-primary" id="wmx-search-go">搜索</button>
+            </div>
+            <div class="wmx-actions">
+              <button class="wmx-mini" id="wmx-mp-open">打开公众号后台</button>
+              <span class="wmx-count" id="wmx-search-note" role="button" tabindex="0" title="点击登录公众号后台">需登录公众号后台</span>
+            </div>
+            <div class="wmx-searchres" id="wmx-searchres" hidden></div>
+            <div class="wmx-sub">② 也可以用文章链接或 __biz 添加 <a class="wmx-help" href="https://github.com/drowning-in-codes/VibeProjects/blob/main/wechat_article_explorer/README.md#%E5%85%AC%E4%BC%97%E5%8F%B7%E7%AE%A1%E7%90%86" target="_blank" rel="noopener" data-wmx-tip="__biz 是微信公众号的唯一标识，藏在文章链接的 __biz= 参数里，用于定位并拉取该公众号。点击此图标查看更详细的说明。" aria-label="什么是 __biz，点击查看说明">?</a></div>
+            <div class="wmx-addbox">
+              <input id="wmx-add-input" class="wmx-txt wmx-add-input" placeholder="文章链接 / __biz / MP_WXS_数字">
+              <button class="wmx-btn wmx-primary" id="wmx-add-go">添加</button>
+            </div>
+            <div class="wmx-hint wmx-tipline">
+              <span class="wmx-info" data-wmx-tip="可粘贴公众号文章完整链接、__biz、fakid 或 MP_WXS_数字添加，不必先关注；在公众号文章页也可以直接点击“收录这个号”。" aria-label="添加公众号说明">i</span>
+              <span>添加方式说明</span>
+            </div>
+            <div class="wmx-actions">
+              <button class="wmx-mini" id="wmx-add-cur" hidden>将当前页面公众号加到查看范围</button>
+              <button class="wmx-mini" id="wmx-add-shelf">将查看范围公众号添加到微信读书关注</button>
+            </div>
           </div>
         </div>
 
@@ -1956,6 +1975,8 @@
     if (shelfEye) shelfEye.addEventListener('click', toggleShelfList);
     const logEye = document.getElementById('wmx-log-eye');
     if (logEye) logEye.addEventListener('click', toggleLogList);
+    const addEye = document.getElementById('wmx-add-eye');
+    if (addEye) addEye.addEventListener('click', toggleAddBox);
     const searchResults = document.getElementById('wmx-searchres');
     if (searchResults) searchResults.addEventListener('click', (ev) => {
       const target = ev.target;
